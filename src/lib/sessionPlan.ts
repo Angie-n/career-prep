@@ -11,11 +11,38 @@ import type {
 } from './types'
 import { CATEGORY_BY_KIND, COMM_KINDS } from './types'
 
-export function allQuestions(custom: Question[]): Question[] {
+export function allQuestions(
+  custom: Question[],
+  removedIds: string[] = [],
+): Question[] {
+  const removed = new Set(removedIds)
   const overlay = new Map(custom.map((q) => [q.id, q]))
-  const seeds = SEED_QUESTIONS.map((q) => overlay.get(q.id) ?? q)
-  const extras = custom.filter((q) => !SEED_QUESTIONS.some((s) => s.id === q.id))
+  const seeds = SEED_QUESTIONS.filter((q) => !removed.has(q.id)).map(
+    (q) => overlay.get(q.id) ?? q,
+  )
+  const extras = custom.filter(
+    (q) => !SEED_QUESTIONS.some((s) => s.id === q.id) && !removed.has(q.id),
+  )
   return [...seeds, ...extras]
+}
+
+export function questionsForCategory(
+  categoryId: string,
+  custom: Question[],
+  removedIds: string[] = [],
+): Question[] {
+  return allQuestions(custom, removedIds).filter((q) => q.categoryId === categoryId)
+}
+
+export function questionsForCategories(
+  categoryIds: string[] | undefined,
+  custom: Question[],
+  removedIds: string[] = [],
+): Question[] {
+  const all = allQuestions(custom, removedIds)
+  if (!categoryIds || categoryIds.length === 0) return all
+  const allowed = new Set(categoryIds)
+  return all.filter((q) => allowed.has(q.categoryId))
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -98,9 +125,20 @@ export function previousDrafts(sessions: PracticeSession[]): SessionAnswer[] {
 export function buildSession(
   kind: SessionKind,
   customQuestions: Question[],
-  opts?: { draft?: SessionAnswer; minutes?: number; note?: string; dsaRetrieved?: DsaRetrievedItem[] },
+  opts?: {
+    draft?: SessionAnswer
+    minutes?: number
+    note?: string
+    dsaRetrieved?: DsaRetrievedItem[]
+    removedQuestionIds?: string[]
+    promptCategoryIds?: string[]
+  },
 ): PracticeSession {
-  const pool = allQuestions(customQuestions)
+  const pool = questionsForCategories(
+    opts?.promptCategoryIds,
+    customQuestions,
+    opts?.removedQuestionIds,
+  )
   const phases: PlannedPhase[] = []
 
   const add = (kindPhase: PlannedPhase['kind'], sec: number, q: Question) => {
@@ -146,10 +184,8 @@ export function buildSession(
     const cold = pick(pool, 5)
     const totalSec = (opts?.minutes ?? 20) * 60
     const n = Math.max(1, cold.length)
-    const think = 40
-    const speak = Math.max(45, Math.round(totalSec / n - think))
+    const speak = Math.max(45, Math.round(totalSec / n))
     for (const q of cold) {
-      add('think', think, q)
       add('speak', speak, q)
     }
   }

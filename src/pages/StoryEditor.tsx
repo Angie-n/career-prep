@@ -23,14 +23,14 @@ export function StoryEditor() {
       type: 'upsert-story',
       story: { ...draft, updatedAt: new Date().toISOString(), title: draft.title.trim() || 'Untitled story' },
     })
-    navigate('/practice/notes')
+    navigate('/practice/stories')
   }
 
   return (
     <div className="stack" style={{ maxWidth: 720 }}>
       <CategorySubnav category="communication" />
-      <Link className="muted" to="/practice/notes">
-        ← Notes
+      <Link className="muted" to="/practice/stories">
+        ← Stories
       </Link>
       <p className="kicker">{heading}</p>
       <h1>{draft.title || 'Name the experience'}</h1>
@@ -61,7 +61,7 @@ export function StoryEditor() {
             type="button"
             onClick={() => {
               dispatch({ type: 'delete-story', id: existing.id })
-              navigate('/practice/notes')
+              navigate('/practice/stories')
             }}
           >
             Delete

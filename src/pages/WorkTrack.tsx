@@ -64,7 +64,12 @@ export function WorkTrack({
           ? await retrieveDsaFromTrackers(state.sheets.dsa, note, { limit: 5 })
           : undefined
 
-      const session = buildSession(kind, state.customQuestions, { minutes, note, dsaRetrieved })
+      const session = buildSession(kind, state.customQuestions, {
+        minutes,
+        note,
+        dsaRetrieved,
+        removedQuestionIds: state.removedQuestionIds,
+      })
       dispatch({ type: 'start-session', session })
       navigate(activeSessionPath(session.id))
     } finally {

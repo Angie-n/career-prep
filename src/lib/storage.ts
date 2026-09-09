@@ -1,22 +1,24 @@
 import {
-  CATEGORY_BY_KIND,
+  BEHAVIORAL_CATEGORY_ID,
   DEFAULT_DURATIONS,
   DEFAULT_GOALS,
   DEFAULT_MAX_STREAKS,
   DEFAULT_SHEETS,
   clampMinutes,
+  liveSlotKey,
   normalizeReflection,
   type AppState,
-  type Category,
   type DailyGoals,
   type MaxStreaks,
   type NamedSheet,
   type PracticeSession,
+  type PromptCategory,
   type Question,
   type SessionDurations,
   type Story,
 } from './types'
 import { withUpdatedMaxStreaks } from './insights'
+import { SEED_BEHAVIORAL_CATEGORY } from './seedQuestions'
 
 const KEY = 'studio:v1'
 const DB_NAME = 'studio-audio'
@@ -48,46 +50,110 @@ function migrateDurations(raw: Partial<SessionDurations> | undefined): SessionDu
   }
 }
 
-function migrateQuestions(raw: unknown): Question[] {
+function migratePromptCategories(raw: unknown): PromptCategory[] {
+  const now = new Date().toISOString()
+  const list: PromptCategory[] = []
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue
+      const c = item as Partial<PromptCategory>
+      const id = String(c.id || '')
+      if (!id) continue
+      list.push({
+        id,
+        title: String(c.title || 'Untitled').trim() || 'Untitled',
+        description: String(c.description || '').trim(),
+        builtin: Boolean(c.builtin) || id === BEHAVIORAL_CATEGORY_ID,
+        createdAt: String(c.createdAt || now),
+        updatedAt: String(c.updatedAt || c.createdAt || now),
+      })
+    }
+  }
+  if (!list.some((c) => c.id === BEHAVIORAL_CATEGORY_ID)) {
+    list.unshift({ ...SEED_BEHAVIORAL_CATEGORY })
+  } else {
+    const i = list.findIndex((c) => c.id === BEHAVIORAL_CATEGORY_ID)
+    const existing = list[i]
+    if (existing) {
+      const next = { ...existing, builtin: true }
+      // Drop old “Starter kit” wording from the seeded description if untouched.
+      if (
+        next.description.includes('Starter kit') &&
+        next.description.startsWith('Classic')
+      ) {
+        next.description = SEED_BEHAVIORAL_CATEGORY.description
+      }
+      list[i] = next
+    }
+  }
+  return list
+}
+
+function migrateQuestions(raw: unknown, categoryIds: Set<string>): Question[] {
   if (!Array.isArray(raw)) return []
   return raw.flatMap((item) => {
     if (!item || typeof item !== 'object') return []
     const q = item as Partial<Question> & { prompt?: string }
     if (typeof q.prompt !== 'string' || !q.prompt.trim()) return []
-    return [{ id: String(q.id || ''), prompt: q.prompt.trim(), custom: true }]
-  }).filter((q) => q.id)
+    const id = String(q.id || '')
+    if (!id) return []
+    let categoryId = String(q.categoryId || BEHAVIORAL_CATEGORY_ID)
+    if (!categoryIds.has(categoryId)) categoryId = BEHAVIORAL_CATEGORY_ID
+    return [
+      {
+        id,
+        prompt: q.prompt.trim(),
+        custom: true,
+        categoryId,
+      },
+    ]
+  })
+}
+
+function migrateRemovedQuestionIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((id) => String(id)).filter(Boolean)
+}
+
+function migrateDrillPromptCategoryIds(raw: unknown, categoryIds: string[]): string[] {
+  const valid = new Set(categoryIds)
+  if (!Array.isArray(raw) || raw.length === 0) return [...categoryIds]
+  const picked = raw.map((id) => String(id)).filter((id) => valid.has(id))
+  return picked.length ? picked : [...categoryIds]
 }
 
 function migrateStories(raw: unknown): Story[] {
   if (!Array.isArray(raw)) return []
-  return raw.flatMap((item) => {
-    if (!item || typeof item !== 'object') return []
-    const s = item as Record<string, unknown>
-    const notes =
-      typeof s.notes === 'string' && s.notes.trim()
-        ? s.notes
-        : [
-            s.situation,
-            s.noticed,
-            s.constraints,
-            s.options,
-            s.decision,
-            s.implementation,
-            s.result,
-            s.learned,
-          ]
-            .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-            .join('\n\n')
-    return [
-      {
-        id: String(s.id || ''),
-        title: String(s.title || 'Untitled'),
-        notes,
-        createdAt: String(s.createdAt || new Date().toISOString()),
-        updatedAt: String(s.updatedAt || s.createdAt || new Date().toISOString()),
-      },
-    ]
-  }).filter((s) => s.id)
+  return raw
+    .flatMap((item) => {
+      if (!item || typeof item !== 'object') return []
+      const s = item as Record<string, unknown>
+      const notes =
+        typeof s.notes === 'string' && s.notes.trim()
+          ? s.notes
+          : [
+              s.situation,
+              s.noticed,
+              s.constraints,
+              s.options,
+              s.decision,
+              s.implementation,
+              s.result,
+              s.learned,
+            ]
+              .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+              .join('\n\n')
+      return [
+        {
+          id: String(s.id || ''),
+          title: String(s.title || 'Untitled'),
+          notes,
+          createdAt: String(s.createdAt || new Date().toISOString()),
+          updatedAt: String(s.updatedAt || s.createdAt || new Date().toISOString()),
+        },
+      ]
+    })
+    .filter((s) => s.id)
 }
 
 function migrateDsaSheets(raw: unknown): NamedSheet[] {
@@ -111,9 +177,13 @@ function migrateDsaSheets(raw: unknown): NamedSheet[] {
 }
 
 function emptyState(): AppState {
+  const promptCategories = [{ ...SEED_BEHAVIORAL_CATEGORY }]
   return {
     stories: [],
+    promptCategories,
     customQuestions: [],
+    removedQuestionIds: [],
+    drillPromptCategoryIds: promptCategories.map((c) => c.id),
     sessions: [],
     goals: { ...DEFAULT_GOALS },
     maxStreaks: { ...DEFAULT_MAX_STREAKS },
@@ -126,17 +196,17 @@ function emptyState(): AppState {
   }
 }
 
-/** Keep the newest in-progress session per category; drop older live duplicates. */
+/** Keep the newest in-progress session per live slot; drop older duplicates. */
 export function dedupeInProgressSessions(sessions: PracticeSession[]): PracticeSession[] {
   const keep = new Set<string>()
-  const seen = new Set<Category>()
+  const seen = new Set<string>()
   const live = sessions
     .filter((s) => s.inProgress)
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
   for (const s of live) {
-    const cat = CATEGORY_BY_KIND[s.kind]
-    if (seen.has(cat)) continue
-    seen.add(cat)
+    const key = liveSlotKey(s.kind)
+    if (seen.has(key)) continue
+    seen.add(key)
     keep.add(s.id)
   }
   return sessions.filter((s) => {
@@ -149,17 +219,16 @@ export function loadState(): AppState {
   const raw = localStorage.getItem(KEY)
   if (!raw) return emptyState()
   try {
-    const parsed = JSON.parse(raw) as AppState
+    const parsed = JSON.parse(raw) as AppState & { removedQuestionIds?: unknown }
     const migratedSessions = (parsed.sessions ?? []).map((s) => {
-      const raw = s as typeof s & {
+      const rawS = s as typeof s & {
         phasePausedRemainingSec?: number
         phasePausedElapsedSec?: number
       }
       const session = {
-        ...raw,
-        reflection: normalizeReflection(raw.reflection),
+        ...rawS,
+        reflection: normalizeReflection(rawS.reflection),
       }
-      // Migrate countdown pause freeze → elapsed freeze.
       if (
         typeof session.phasePausedRemainingSec === 'number' &&
         session.phasePausedElapsedSec == null
@@ -170,8 +239,6 @@ export function loadState(): AppState {
         session.phasePausedElapsedSec = Math.max(0, Math.floor(duration - remaining))
       }
       delete session.phasePausedRemainingSec
-      // In-progress sessions without phaseStartedAt (older saves): start clock from now
-      // so resume gets a full phase rather than treating startedAt as phase start.
       if (session.inProgress && !session.phaseStartedAt && session.phasePausedElapsedSec == null) {
         session.phaseStartedAt = new Date().toISOString()
       }
@@ -182,9 +249,18 @@ export function loadState(): AppState {
     if (activeSessionId && !sessions.some((s) => s.id === activeSessionId && s.inProgress)) {
       activeSessionId = sessions.find((s) => s.inProgress)?.id ?? null
     }
+    const promptCategories = migratePromptCategories(parsed.promptCategories)
+    const categoryIds = promptCategories.map((c) => c.id)
+    const categoryIdSet = new Set(categoryIds)
     const base: AppState = {
       stories: migrateStories(parsed.stories),
-      customQuestions: migrateQuestions(parsed.customQuestions),
+      promptCategories,
+      customQuestions: migrateQuestions(parsed.customQuestions, categoryIdSet),
+      removedQuestionIds: migrateRemovedQuestionIds(parsed.removedQuestionIds),
+      drillPromptCategoryIds: migrateDrillPromptCategoryIds(
+        (parsed as AppState).drillPromptCategoryIds,
+        categoryIds,
+      ),
       sessions,
       goals: migrateGoals(parsed.goals),
       maxStreaks: migrateMaxStreaks(parsed.maxStreaks),

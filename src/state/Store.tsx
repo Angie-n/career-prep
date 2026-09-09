@@ -1,20 +1,34 @@
 import { createContext, createElement, useContext, useMemo, useReducer, useEffect, type ReactNode } from 'react'
 import { uid } from '../lib/ids'
 import { withUpdatedMaxStreaks } from '../lib/insights'
+import { SEED_QUESTIONS } from '../lib/seedQuestions'
 import { minutesByCategory } from '../lib/sessionPlan'
 import { loadState, saveState } from '../lib/storage'
-import type { AppState, Category, MaxStreaks, PracticeSession, Question, Reflection, Story } from '../lib/types'
-import { CATEGORY_BY_KIND, emptyStory } from '../lib/types'
+import { BEHAVIORAL_CATEGORY_ID, CATEGORY_BY_KIND, emptyStory, liveSlotKey, sameLiveSlot } from '../lib/types'
+import type {
+  AppState,
+  Category,
+  MaxStreaks,
+  PracticeSession,
+  PromptCategory,
+  Question,
+  Reflection,
+  SessionKind,
+  Story,
+} from '../lib/types'
 
 type Action =
   | { type: 'upsert-story'; story: Story }
   | { type: 'delete-story'; id: string }
+  | { type: 'upsert-prompt-category'; category: PromptCategory }
+  | { type: 'delete-prompt-category'; id: string }
   | { type: 'upsert-question'; question: Question }
   | { type: 'delete-question'; id: string }
   | { type: 'set-goals'; goals: AppState['goals'] }
   | { type: 'set-max-streaks'; maxStreaks: MaxStreaks }
   | { type: 'sync-max-streaks' }
   | { type: 'set-durations'; durations: AppState['durations'] }
+  | { type: 'set-drill-prompt-categories'; ids: string[] }
   | { type: 'set-sheets'; sheets: AppState['sheets'] }
   | { type: 'start-session'; session: PracticeSession }
   | { type: 'focus-session'; id: string }
@@ -24,16 +38,16 @@ type Action =
   | { type: 'delete-session'; id: string }
   | { type: 'clear-history' }
 
-/** In-progress sessions, one per category, most recently started first. */
+/** In-progress sessions, one per live slot, most recently started first. */
 export function inProgressSessions(state: AppState): PracticeSession[] {
-  const seen = new Set<Category>()
+  const seen = new Set<string>()
   const out: PracticeSession[] = []
   for (const s of state.sessions
     .filter((s) => s.inProgress)
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))) {
-    const cat = CATEGORY_BY_KIND[s.kind]
-    if (seen.has(cat)) continue
-    seen.add(cat)
+    const key = liveSlotKey(s.kind)
+    if (seen.has(key)) continue
+    seen.add(key)
     out.push(s)
   }
   return out
@@ -46,10 +60,28 @@ export function inProgressForCategory(
   return inProgressSessions(state).find((s) => CATEGORY_BY_KIND[s.kind] === category)
 }
 
+export function inProgressSessionsForCategory(
+  state: AppState,
+  category: Category,
+): PracticeSession[] {
+  return inProgressSessions(state).filter((s) => CATEGORY_BY_KIND[s.kind] === category)
+}
+
+export function inProgressForKind(
+  state: AppState,
+  kind: SessionKind,
+): PracticeSession | undefined {
+  return inProgressSessions(state).find((s) => sameLiveSlot(s.kind, kind))
+}
+
 function nextActiveId(sessions: PracticeSession[], preferId?: string | null): string | null {
   const live = sessions.filter((s) => s.inProgress)
   if (preferId && live.some((s) => s.id === preferId)) return preferId
   return live[0]?.id ?? null
+}
+
+function isSeedQuestion(id: string): boolean {
+  return SEED_QUESTIONS.some((q) => q.id === id)
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -65,20 +97,56 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'delete-story':
       return { ...state, stories: state.stories.filter((s) => s.id !== action.id) }
-    case 'upsert-question': {
-      const exists = state.customQuestions.some((q) => q.id === action.question.id)
+    case 'upsert-prompt-category': {
+      const exists = state.promptCategories.some((c) => c.id === action.category.id)
       return {
         ...state,
+        promptCategories: exists
+          ? state.promptCategories.map((c) =>
+              c.id === action.category.id
+                ? {
+                    ...action.category,
+                    builtin: c.builtin || action.category.id === BEHAVIORAL_CATEGORY_ID,
+                  }
+                : c,
+            )
+          : [action.category, ...state.promptCategories],
+      }
+    }
+    case 'delete-prompt-category': {
+      const target = state.promptCategories.find((c) => c.id === action.id)
+      if (!target || target.builtin || target.id === BEHAVIORAL_CATEGORY_ID) return state
+      const nextIds = state.drillPromptCategoryIds.filter((id) => id !== action.id)
+      return {
+        ...state,
+        promptCategories: state.promptCategories.filter((c) => c.id !== action.id),
+        customQuestions: state.customQuestions.map((q) =>
+          q.categoryId === action.id ? { ...q, categoryId: BEHAVIORAL_CATEGORY_ID } : q,
+        ),
+        drillPromptCategoryIds: nextIds.length
+          ? nextIds
+          : state.promptCategories.filter((c) => c.id !== action.id).map((c) => c.id),
+      }
+    }
+    case 'upsert-question': {
+      const exists = state.customQuestions.some((q) => q.id === action.question.id)
+      const removedQuestionIds = state.removedQuestionIds.filter((id) => id !== action.question.id)
+      return {
+        ...state,
+        removedQuestionIds,
         customQuestions: exists
           ? state.customQuestions.map((q) => (q.id === action.question.id ? action.question : q))
           : [...state.customQuestions, action.question],
       }
     }
-    case 'delete-question':
-      return {
-        ...state,
-        customQuestions: state.customQuestions.filter((q) => q.id !== action.id),
-      }
+    case 'delete-question': {
+      const customQuestions = state.customQuestions.filter((q) => q.id !== action.id)
+      const removedQuestionIds =
+        isSeedQuestion(action.id) && !state.removedQuestionIds.includes(action.id)
+          ? [...state.removedQuestionIds, action.id]
+          : state.removedQuestionIds
+      return { ...state, customQuestions, removedQuestionIds }
+    }
     case 'set-goals': {
       const next = { ...state, goals: action.goals }
       return { ...next, maxStreaks: withUpdatedMaxStreaks(next) }
@@ -98,17 +166,23 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'set-durations':
       return { ...state, durations: action.durations }
+    case 'set-drill-prompt-categories': {
+      const valid = new Set(state.promptCategories.map((c) => c.id))
+      return {
+        ...state,
+        drillPromptCategoryIds: action.ids.filter((id) => valid.has(id)),
+      }
+    }
     case 'set-sheets':
       return { ...state, sheets: action.sheets }
     case 'start-session': {
-      const cat = CATEGORY_BY_KIND[action.session.kind]
       const conflict = state.sessions.find(
         (s) =>
           s.inProgress &&
           s.id !== action.session.id &&
-          CATEGORY_BY_KIND[s.kind] === cat,
+          sameLiveSlot(s.kind, action.session.kind),
       )
-      // One in-progress session per category — keep the live one unless this is the same id.
+      // One in-progress session per live slot.
       if (conflict) return state
       return {
         ...state,
@@ -149,12 +223,10 @@ function reducer(state: AppState, action: Action): AppState {
     case 'abandon-session': {
       const target = state.sessions.find((s) => s.id === action.id)
       if (!target) return state
-      const cat = CATEGORY_BY_KIND[target.kind]
-      // Drop the discarded session and any same-category in-progress duplicates
-      // (legacy / multi-start glitches) so Resume lists clear immediately.
+      // Drop this session and any same-slot in-progress duplicates.
       const sessions = state.sessions.filter((s) => {
         if (s.id === action.id) return false
-        if (s.inProgress && CATEGORY_BY_KIND[s.kind] === cat) return false
+        if (s.inProgress && sameLiveSlot(s.kind, target.kind)) return false
         return true
       })
       const prefer =
@@ -172,7 +244,10 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         sessions,
-        activeSessionId: nextActiveId(sessions, state.activeSessionId === action.id ? null : state.activeSessionId),
+        activeSessionId: nextActiveId(
+          sessions,
+          state.activeSessionId === action.id ? null : state.activeSessionId,
+        ),
       }
     }
     case 'clear-history': {
@@ -226,7 +301,29 @@ export function useInProgressForCategory(category: Category) {
   return useMemo(() => inProgressForCategory(state, category), [state, category])
 }
 
+export function useInProgressSessionsForCategory(category: Category) {
+  const { state } = useStore()
+  return useMemo(() => inProgressSessionsForCategory(state, category), [state, category])
+}
+
+export function useInProgressForKind(kind: SessionKind) {
+  const { state } = useStore()
+  return useMemo(() => inProgressForKind(state, kind), [state, kind])
+}
+
 export function newStoryDraft(): Story {
   const now = new Date().toISOString()
   return { ...emptyStory(), id: uid(), createdAt: now, updatedAt: now }
+}
+
+export function newPromptCategoryDraft(): PromptCategory {
+  const now = new Date().toISOString()
+  return {
+    id: uid(),
+    title: '',
+    description: '',
+    builtin: false,
+    createdAt: now,
+    updatedAt: now,
+  }
 }

@@ -22,10 +22,24 @@ export type Story = {
   updatedAt: string
 }
 
+/** Groups Communication prompts (e.g. Behavioral, a resume project). Not the apps/comm/dsa track. */
+export type PromptCategory = {
+  id: string
+  title: string
+  description: string
+  /** Built-in starter categories (e.g. Behavioral) cannot be deleted. */
+  builtin: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export const BEHAVIORAL_CATEGORY_ID = 'pcat-behavioral'
+
 export type Question = {
   id: string
   prompt: string
   custom: boolean
+  categoryId: string
 }
 
 export type SessionKind =
@@ -51,6 +65,20 @@ export const CATEGORY_BY_KIND: Record<SessionKind, Category> = {
   'cold-burst': 'communication',
   'story-retrieval': 'communication',
   'quick-drill': 'communication',
+}
+
+/**
+ * Concurrent live sessions: apps/dsa stay one-per-category.
+ * Communication allows one live session per kind (draft + rapid fire can both run).
+ */
+export function liveSlotKey(kind: SessionKind): string {
+  const cat = CATEGORY_BY_KIND[kind]
+  if (cat !== 'communication') return `cat:${cat}`
+  return `kind:${kind}`
+}
+
+export function sameLiveSlot(a: SessionKind, b: SessionKind): boolean {
+  return liveSlotKey(a) === liveSlotKey(b)
 }
 
 export type PhaseKind = 'draft' | 'deliver' | 'think' | 'speak' | 'block'
@@ -139,7 +167,13 @@ export type NamedSheet = {
 
 export type AppState = {
   stories: Story[]
+  /** Prompt banks under Communication (Behavioral starter + user-created). */
+  promptCategories: PromptCategory[]
   customQuestions: Question[]
+  /** Seed prompt ids the user removed from the bank. */
+  removedQuestionIds: string[]
+  /** Prompt category ids included when starting Communication drills. */
+  drillPromptCategoryIds: string[]
   sessions: PracticeSession[]
   goals: DailyGoals
   maxStreaks: MaxStreaks
@@ -202,7 +236,7 @@ export const SESSION_META: Record<
   'comm-cold': {
     title: 'Rapid Fire',
     minutes: 20,
-    blurb: 'Rapid-fire unexpected prompts. Short think, then speak. No notes.',
+    blurb: 'Unexpected prompts. Speak under the clock — no notes, no warm-up.',
   },
   'apps-block': {
     title: 'Application block',

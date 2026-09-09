@@ -351,7 +351,9 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                 ? 'Organize in your head. Do not write.'
                 : drafting
                   ? 'Write the answer you would actually say. Tight, not a novel.'
-                  : 'The draft is hidden. Speak.'}
+                  : phase.kind === 'speak'
+                    ? 'Speak. No notes.'
+                    : 'The draft is hidden. Speak.'}
             </p>
           )}
           {!isDsaBlock ? <h1 style={{ textAlign: 'center' }}>{phase.prompt}</h1> : null}

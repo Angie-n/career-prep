@@ -1,4 +1,5 @@
-import type { Question } from './types'
+import type { PromptCategory, Question } from './types'
+import { BEHAVIORAL_CATEGORY_ID } from './types'
 
 const PROMPTS = [
   'Tell me about yourself.',
@@ -23,8 +24,19 @@ const PROMPTS = [
   'Walk me through a challenge you overcame.',
 ]
 
+export const SEED_BEHAVIORAL_CATEGORY: PromptCategory = {
+  id: BEHAVIORAL_CATEGORY_ID,
+  title: 'Behavioral',
+  description:
+    'Classic “tell me about a time…” prompts. Edit, remove, or add your own.',
+  builtin: true,
+  createdAt: '2020-01-01T00:00:00.000Z',
+  updatedAt: '2020-01-01T00:00:00.000Z',
+}
+
 export const SEED_QUESTIONS: Question[] = PROMPTS.map((prompt, i) => ({
   id: `q-beh-${i + 1}`,
   prompt,
   custom: false,
+  categoryId: BEHAVIORAL_CATEGORY_ID,
 }))

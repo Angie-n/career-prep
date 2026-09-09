@@ -26,7 +26,8 @@ function itemsFor(category: Category): Item[] {
   return [
     { to: '/practice', label: 'Home', end: true },
     { to: '/practice/history', label: 'History' },
-    { to: '/practice/notes', label: 'Notes', matchPrefix: '/practice/stories' },
+    { to: '/practice/stories', label: 'Stories', matchPrefix: '/practice/stories' },
+    { to: '/practice/prompts', label: 'Prompts', matchPrefix: '/practice/prompts' },
   ]
 }
 

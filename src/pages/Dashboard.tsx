@@ -16,7 +16,7 @@ import {
   type PracticeSession,
   type SessionKind,
 } from '../lib/types'
-import { inProgressForCategory, useInProgressSessions, useStore } from '../state/Store'
+import { inProgressForKind, useInProgressSessions, useStore } from '../state/Store'
 
 function recommend(neglected: Category): SessionKind {
   if (neglected === 'applications') return 'apps-block'
@@ -48,7 +48,7 @@ export function Dashboard() {
   const goalPct = todayGoalProgressPct(mins, state.goals)
   const goalPctLabel = Math.round(goalPct)
   const goalBarPct = Math.min(100, goalPct)
-  const activeForRecommend = inProgressForCategory(state, CATEGORY_BY_KIND[kind])
+  const activeForRecommend = inProgressForKind(state, kind)
 
   const options: HeroOption[] = [
     ...live.map((session) => ({ type: 'resume' as const, session })),
@@ -79,6 +79,8 @@ export function Dashboard() {
     }
     const session = buildSession(kind, state.customQuestions, {
       minutes: durationFor(state.durations, kind),
+      removedQuestionIds: state.removedQuestionIds,
+      promptCategoryIds: state.drillPromptCategoryIds,
     })
     dispatch({ type: 'start-session', session })
     navigate(activeSessionPath(session.id))
