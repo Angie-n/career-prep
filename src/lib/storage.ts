@@ -1,4 +1,5 @@
 import {
+  CATEGORY_BY_KIND,
   DEFAULT_DURATIONS,
   DEFAULT_GOALS,
   DEFAULT_MAX_STREAKS,
@@ -6,6 +7,7 @@ import {
   clampMinutes,
   normalizeReflection,
   type AppState,
+  type Category,
   type DailyGoals,
   type MaxStreaks,
   type NamedSheet,
@@ -124,18 +126,66 @@ function emptyState(): AppState {
   }
 }
 
+/** Keep the newest in-progress session per category; drop older live duplicates. */
+export function dedupeInProgressSessions(sessions: PracticeSession[]): PracticeSession[] {
+  const keep = new Set<string>()
+  const seen = new Set<Category>()
+  const live = sessions
+    .filter((s) => s.inProgress)
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
+  for (const s of live) {
+    const cat = CATEGORY_BY_KIND[s.kind]
+    if (seen.has(cat)) continue
+    seen.add(cat)
+    keep.add(s.id)
+  }
+  return sessions.filter((s) => {
+    if (!s.inProgress) return true
+    return keep.has(s.id)
+  })
+}
+
 export function loadState(): AppState {
   const raw = localStorage.getItem(KEY)
   if (!raw) return emptyState()
   try {
     const parsed = JSON.parse(raw) as AppState
+    const migratedSessions = (parsed.sessions ?? []).map((s) => {
+      const raw = s as typeof s & {
+        phasePausedRemainingSec?: number
+        phasePausedElapsedSec?: number
+      }
+      const session = {
+        ...raw,
+        reflection: normalizeReflection(raw.reflection),
+      }
+      // Migrate countdown pause freeze → elapsed freeze.
+      if (
+        typeof session.phasePausedRemainingSec === 'number' &&
+        session.phasePausedElapsedSec == null
+      ) {
+        const phase = session.phases?.[session.currentPhaseIndex]
+        const remaining = session.phasePausedRemainingSec
+        const duration = phase?.durationSec ?? remaining
+        session.phasePausedElapsedSec = Math.max(0, Math.floor(duration - remaining))
+      }
+      delete session.phasePausedRemainingSec
+      // In-progress sessions without phaseStartedAt (older saves): start clock from now
+      // so resume gets a full phase rather than treating startedAt as phase start.
+      if (session.inProgress && !session.phaseStartedAt && session.phasePausedElapsedSec == null) {
+        session.phaseStartedAt = new Date().toISOString()
+      }
+      return session
+    })
+    const sessions = dedupeInProgressSessions(migratedSessions)
+    let activeSessionId = parsed.activeSessionId ?? null
+    if (activeSessionId && !sessions.some((s) => s.id === activeSessionId && s.inProgress)) {
+      activeSessionId = sessions.find((s) => s.inProgress)?.id ?? null
+    }
     const base: AppState = {
       stories: migrateStories(parsed.stories),
       customQuestions: migrateQuestions(parsed.customQuestions),
-      sessions: (parsed.sessions ?? []).map((s) => ({
-        ...s,
-        reflection: normalizeReflection(s.reflection),
-      })),
+      sessions,
       goals: migrateGoals(parsed.goals),
       maxStreaks: migrateMaxStreaks(parsed.maxStreaks),
       durations: migrateDurations(parsed.durations),
@@ -146,7 +196,7 @@ export function loadState(): AppState {
         },
         dsa: migrateDsaSheets(parsed.sheets?.dsa),
       },
-      activeSessionId: parsed.activeSessionId ?? null,
+      activeSessionId,
     }
     return { ...base, maxStreaks: withUpdatedMaxStreaks(base) }
   } catch {

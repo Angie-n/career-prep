@@ -4,11 +4,12 @@ import type {
   Category,
   PlannedPhase,
   PracticeSession,
+  DsaRetrievedItem,
   Question,
   SessionAnswer,
   SessionKind,
 } from './types'
-import { CATEGORY_BY_KIND } from './types'
+import { CATEGORY_BY_KIND, COMM_KINDS } from './types'
 
 export function allQuestions(custom: Question[]): Question[] {
   const overlay = new Map(custom.map((q) => [q.id, q]))
@@ -38,6 +39,7 @@ function finish(
   kind: SessionKind,
   phases: PlannedPhase[],
   extraAnswers: SessionAnswer[] = [],
+  dsaRetrieved?: DsaRetrievedItem[],
 ): PracticeSession {
   const answers: SessionAnswer[] = [...extraAnswers]
   const seen = new Set(answers.map((a) => a.questionId + (a.storyId ?? '')))
@@ -53,21 +55,38 @@ function finish(
       transcript: '',
     })
   }
+  const now = new Date().toISOString()
   return {
     id: uid(),
     kind,
-    startedAt: new Date().toISOString(),
+    startedAt: now,
     phases,
     answers,
+    dsaRetrieved,
     categoryMinutes: {},
     inProgress: true,
     currentPhaseIndex: 0,
+    phaseStartedAt: now,
   }
+}
+
+/** Elapsed seconds for the active phase, from wall clock or pause freeze. */
+export function phaseElapsedSec(session: PracticeSession, nowMs = Date.now()): number {
+  if (typeof session.phasePausedElapsedSec === 'number') {
+    return Math.max(0, Math.floor(session.phasePausedElapsedSec))
+  }
+  const startedMs = session.phaseStartedAt ? Date.parse(session.phaseStartedAt) : nowMs
+  return Math.max(0, Math.floor((nowMs - startedMs) / 1000))
+}
+
+export function isPhasePaused(session: PracticeSession): boolean {
+  return typeof session.phasePausedElapsedSec === 'number'
 }
 
 export function previousDrafts(sessions: PracticeSession[]): SessionAnswer[] {
   const out: SessionAnswer[] = []
   for (const s of sessions) {
+    if (!COMM_KINDS.includes(s.kind)) continue
     if (!s.completedAt) continue
     for (const a of s.answers) {
       if (a.draftNotes.trim()) out.push(a)
@@ -79,7 +98,7 @@ export function previousDrafts(sessions: PracticeSession[]): SessionAnswer[] {
 export function buildSession(
   kind: SessionKind,
   customQuestions: Question[],
-  opts?: { draft?: SessionAnswer; minutes?: number; note?: string },
+  opts?: { draft?: SessionAnswer; minutes?: number; note?: string; dsaRetrieved?: DsaRetrievedItem[] },
 ): PracticeSession {
   const pool = allQuestions(customQuestions)
   const phases: PlannedPhase[] = []
@@ -146,7 +165,7 @@ export function buildSession(
     })
   }
 
-  return finish(kind, phases)
+  return finish(kind, phases, [], opts?.dsaRetrieved)
 }
 
 export function minutesByCategory(session: PracticeSession, completedAt: string): Partial<Record<Category, number>> {
@@ -155,6 +174,13 @@ export function minutesByCategory(session: PracticeSession, completedAt: string)
   const planned = session.phases.reduce((n, p) => n + p.durationSec / 60, 0)
   const mins = Math.max(1, Math.round(Math.min(elapsed, planned + 2)))
   return { [cat]: mins }
+}
+
+/** Live studio + wrap-up UI. Category homes stay idle; resume CTAs land here. */
+export const ACTIVE_SESSION_PATH = '/active'
+
+export function activeSessionPath(sessionId: string): string {
+  return `${ACTIVE_SESSION_PATH}/${sessionId}`
 }
 
 export function startHref(kind: SessionKind): string {

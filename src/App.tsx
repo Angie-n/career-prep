@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { Active } from './pages/Active'
 import { CategoryHistory, PracticeNotes } from './pages/CategoryHistory'
 import { Dashboard } from './pages/Dashboard'
 import { Goals } from './pages/Goals'
@@ -16,6 +17,8 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/active" element={<Active />} />
+            <Route path="/active/:sessionId" element={<Active />} />
             <Route path="/practice" element={<Practice />} />
             <Route path="/practice/history" element={<CategoryHistory category="communication" />} />
             <Route path="/practice/notes" element={<PracticeNotes />} />

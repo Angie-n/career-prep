@@ -75,7 +75,9 @@ function loadScript(): Promise<Gis> {
 
 export async function signInGoogle(): Promise<string> {
   const clientId = googleClientId()
-  if (!clientId) throw new Error('Paste a Google OAuth client ID first.')
+  if (!clientId) {
+    throw new Error('Google sign-in isn’t configured. Set VITE_GOOGLE_CLIENT_ID in .env.local.')
+  }
   const gis = await loadScript()
   return new Promise((resolve, reject) => {
     const client = gis.accounts.oauth2.initTokenClient({

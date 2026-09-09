@@ -1,5 +1,5 @@
 import { todayKey } from './ids'
-import type { AppState, Category, PracticeSession } from './types'
+import type { AppState, Category, DailyGoals, PracticeSession } from './types'
 import { CATEGORIES, CATEGORY_BY_KIND, CATEGORY_LABEL } from './types'
 
 export function completedSessions(state: AppState): PracticeSession[] {
@@ -18,6 +18,17 @@ export function minutesToday(state: AppState, day = todayKey()): Record<Category
     }
   }
   return out
+}
+
+/** Credited minutes toward goals ÷ total goal minutes (per-category overtime does not count). Max 100%. */
+export function todayGoalProgressPct(
+  mins: Record<Category, number>,
+  goals: DailyGoals,
+): number {
+  const credited = CATEGORIES.reduce((n, c) => n + Math.min(mins[c], goals[c]), 0)
+  const totalGoal = CATEGORIES.reduce((n, c) => n + goals[c], 0)
+  if (totalGoal <= 0) return 0
+  return (credited / totalGoal) * 100
 }
 
 export function minutesLastDays(state: AppState, days: number): Record<Category, number> {

@@ -5,7 +5,10 @@ import { useStore } from '../state/Store'
 
 type Props = {
   category: Category
-  /** Full card with numbers + 4-week grid, or a compact summary strip. */
+  /**
+   * Full dashboard card, or a mini horizontal strip for category homes.
+   * Compact is intentionally secondary — tiny fixed dots, not a full-width grid.
+   */
   compact?: boolean
   days?: number
 }
@@ -19,13 +22,11 @@ export function StreakCalendar({ category, compact = false, days = 28 }: Props) 
 
   if (compact) {
     return (
-      <div className={`streak-compact cat-${category}`}>
-        <p className="muted streak-compact-line">
-          {current === 1 ? '1 day streak' : `${current} day streak`}
-          {' · '}
-          max {max}
+      <aside className={`streak-mini cat-${category}`} aria-label={`${CATEGORY_LABEL[category]} streak`}>
+        <p className="muted streak-mini-line">
+          {current}d streak · max {max}
         </p>
-        <div className="mini-cal mini-cal-sm" aria-hidden>
+        <div className="mini-cal-row" aria-hidden>
           {window.map(({ day, met }) => (
             <span
               key={day}
@@ -34,7 +35,7 @@ export function StreakCalendar({ category, compact = false, days = 28 }: Props) 
             />
           ))}
         </div>
-      </div>
+      </aside>
     )
   }
 

@@ -12,17 +12,15 @@ export type SheetKind = 'applications' | 'dsa'
 
 export const SHEET_META: Record<
   SheetKind,
-  { columns: readonly string[]; search: string; empty: string }
+  { columns: readonly string[]; search: string }
 > = {
   applications: {
     columns: APP_COLUMNS,
     search: 'Search company, role, or description',
-    empty: 'Import a CSV, or sign in with Google to read a private sheet.',
   },
   dsa: {
     columns: DSA_COLUMNS,
     search: 'Search problem, topic, difficulty, or notes',
-    empty: 'Import a CSV, or sign in with Google to read a private sheet.',
   },
 }
 
@@ -113,12 +111,12 @@ export async function loadPublicSheet(url: string): Promise<SheetTable> {
     try {
       const res = await fetch(path)
       if (!res.ok) {
-        last = `Sheet request failed (${res.status}). For a private sheet, import a CSV or sign in with Google.`
+        last = `Sheet request failed (${res.status}). For a private sheet, sign in with Google.`
         continue
       }
       const text = await res.text()
       if (text.trim().startsWith('<')) {
-        last = 'This sheet is private. Import a CSV, or sign in with Google — do not set it to “anyone with the link”.'
+        last = 'This sheet is private. Sign in with Google to read it live.'
         continue
       }
       return parseCsv(text)

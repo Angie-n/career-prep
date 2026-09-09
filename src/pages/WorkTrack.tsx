@@ -1,23 +1,23 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CategoryGlance } from '../components/CategoryGlance'
 import { CategorySubnav } from '../components/CategorySubnav'
-import { GoogleConnect } from '../components/GoogleConnect'
 import { MinutesPicker } from '../components/MinutesPicker'
+import { ResumeSessionCard } from '../components/ResumeSessionCard'
 import { SheetLog } from '../components/SheetLog'
 import { uid } from '../lib/ids'
-import { buildSession } from '../lib/sessionPlan'
+import { activeSessionPath, buildSession } from '../lib/sessionPlan'
+import { retrieveDsaFromTrackers } from '../lib/retrieveDsa'
 import { deleteSheetCsv } from '../lib/storage'
 import {
   CATEGORY_LABEL,
   SESSION_META,
   clampMinutes,
-  durationFor,
   type Category,
   type NamedSheet,
   type SessionKind,
 } from '../lib/types'
-import { useStore } from '../state/Store'
+import { useInProgressForCategory, useStore } from '../state/Store'
 
 export function WorkTrack({
   category,
@@ -29,23 +29,47 @@ export function WorkTrack({
   pane?: 'home' | 'tracker'
 }) {
   const { state, dispatch } = useStore()
+  const matchingActive = useInProgressForCategory(category)
   const navigate = useNavigate()
-  const minutes = durationFor(state.durations, kind)
+  const goalMinutes = state.goals[category]
+  const [minutes, setMinutesLocal] = useState(goalMinutes)
   const [note, setNote] = useState('')
+  const [starting, setStarting] = useState(false)
   const meta = SESSION_META[kind]
   const tracking = pane === 'tracker'
+  const busy = Boolean(matchingActive)
+
+  useEffect(() => {
+    setMinutesLocal(goalMinutes)
+  }, [goalMinutes])
 
   function setMinutes(next: number) {
+    const value = clampMinutes(next, goalMinutes)
+    setMinutesLocal(value)
     dispatch({
       type: 'set-durations',
-      durations: { ...state.durations, [kind]: clampMinutes(next, minutes) },
+      durations: { ...state.durations, [kind]: value },
     })
   }
 
-  function start() {
-    const session = buildSession(kind, state.customQuestions, { minutes, note })
-    dispatch({ type: 'start-session', session })
-    navigate('/practice')
+  async function start() {
+    if (matchingActive) {
+      navigate(activeSessionPath(matchingActive.id))
+      return
+    }
+    setStarting(true)
+    try {
+      const dsaRetrieved =
+        kind === 'dsa-block'
+          ? await retrieveDsaFromTrackers(state.sheets.dsa, note, { limit: 5 })
+          : undefined
+
+      const session = buildSession(kind, state.customQuestions, { minutes, note, dsaRetrieved })
+      dispatch({ type: 'start-session', session })
+      navigate(activeSessionPath(session.id))
+    } finally {
+      setStarting(false)
+    }
   }
 
   return (
@@ -69,10 +93,15 @@ export function WorkTrack({
       ) : (
         <>
           <CategoryGlance category={category} />
+          {matchingActive ? <ResumeSessionCard session={matchingActive} headingLevel="h2" /> : null}
           <section className="card action start-card">
             <div className="start-card-copy">
               <h2>Log a focused block</h2>
-              <p className="muted">This time counts only toward {CATEGORY_LABEL[category].toLowerCase()}.</p>
+              <p className="muted">
+                {matchingActive
+                  ? 'Or discard the session above to start a new block.'
+                  : `This time counts only toward ${CATEGORY_LABEL[category].toLowerCase()}.`}
+              </p>
             </div>
             <label className="field start-card-note">
               What are you working on? (optional)
@@ -81,12 +110,18 @@ export function WorkTrack({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={category === 'applications' ? 'Company + role…' : 'Problem or topic…'}
+                disabled={busy}
               />
             </label>
             <div className="start-card-actions">
               <MinutesPicker value={minutes} onChange={setMinutes} />
-              <button className="btn" type="button" onClick={start}>
-                Start
+              <button
+                className="btn"
+                type="button"
+                onClick={() => void start()}
+                disabled={starting || busy}
+              >
+                {starting ? 'Loading…' : busy ? 'Resume first' : 'Start'}
               </button>
             </div>
           </section>
@@ -98,8 +133,24 @@ export function WorkTrack({
 
 function WorkTrackSheets({ category }: { category: Extract<Category, 'applications' | 'dsa'> }) {
   const { state, dispatch } = useStore()
+  const [searchParams] = useSearchParams()
+  const focusSourceId = searchParams.get('sourceId') ?? ''
+
   const [sheetUrl, setSheetUrl] = useState(state.sheets.applications.url)
   const [dsaDrafts, setDsaDrafts] = useState<NamedSheet[]>(state.sheets.dsa)
+
+  useEffect(() => {
+    if (category !== 'dsa') return
+    if (!focusSourceId.trim()) return
+    const scroll = () => {
+      const el = document.getElementById(`dsa-tracker-${focusSourceId}`)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    scroll()
+    // Sheet sections render from state; do a second attempt after paint.
+    window.setTimeout(scroll, 0)
+  }, [category, focusSourceId])
 
   function saveAppsSheet() {
     dispatch({
@@ -112,22 +163,6 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
         },
       },
     })
-  }
-
-  function markImported(id: string, iso: string) {
-    if (category === 'applications') {
-      dispatch({
-        type: 'set-sheets',
-        sheets: {
-          ...state.sheets,
-          applications: { url: sheetUrl.trim(), importedAt: iso },
-        },
-      })
-      return
-    }
-    const next = dsaDrafts.map((s) => (s.id === id ? { ...s, importedAt: iso } : s))
-    setDsaDrafts(next)
-    dispatch({ type: 'set-sheets', sheets: { ...state.sheets, dsa: next } })
   }
 
   function saveDsa() {
@@ -145,52 +180,36 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
 
   if (category === 'applications') {
     return (
-      <>
-        <GoogleConnect />
-        <section className="card stack">
-          <p className="kicker">Spreadsheet</p>
-          <h2>Application log</h2>
-          <p className="muted">
-            Keep the sheet private. Import a CSV, or paste the URL after signing in with Google. A public “anyone with
-            the link” share is not required.
-          </p>
-          <label className="field">
-            Sheet URL (for live Google read)
-            <input
-              type="text"
-              value={sheetUrl}
-              onChange={(e) => setSheetUrl(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/…"
-            />
-          </label>
-          <button className="btn ghost" type="button" onClick={saveAppsSheet}>
-            Save link
-          </button>
-          <SheetLog
-            sourceId="applications"
-            url={state.sheets.applications.url}
-            kind="applications"
-            importedAt={state.sheets.applications.importedAt}
-            onImported={(iso) => markImported('applications', iso)}
+      <section className="card stack">
+        <p className="kicker">Spreadsheet</p>
+        <h2>Application log</h2>
+        <p className="muted">Paste the sheet URL for a live read. Private sheets prompt Google sign-in when needed.</p>
+        <label className="field">
+          Sheet URL
+          <input
+            type="text"
+            value={sheetUrl}
+            onChange={(e) => setSheetUrl(e.target.value)}
+            placeholder="https://docs.google.com/spreadsheets/d/…"
           />
-        </section>
-      </>
+        </label>
+        <button className="btn ghost" type="button" onClick={saveAppsSheet}>
+          Save link
+        </button>
+        <SheetLog url={state.sheets.applications.url} kind="applications" />
+      </section>
     )
   }
 
   return (
     <div className="stack">
-      <GoogleConnect />
       <div>
         <p className="kicker">Spreadsheets</p>
         <h2>DSA trackers</h2>
-        <p className="lead">
-          Add each sheet you keep. Same columns: Date, Problem, Difficulty, Topics, Notes. Leave them restricted —
-          import CSV or sign in with Google.
-        </p>
+        <p className="lead">Name each tracker and paste its sheet URL. Same columns: Date, Problem, Difficulty, Topics, Notes.</p>
       </div>
       {dsaDrafts.map((sheet, i) => (
-        <section className="card stack" key={sheet.id}>
+        <section className="card stack" key={sheet.id} id={`dsa-tracker-${sheet.id}`}>
           <p className="kicker">Tracker {i + 1}</p>
           <label className="field">
             Name
@@ -204,7 +223,7 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
             />
           </label>
           <label className="field">
-            Sheet URL (for live Google read)
+            Sheet URL
             <input
               type="text"
               value={sheet.url}
@@ -233,13 +252,7 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
               </button>
             ) : null}
           </div>
-          <SheetLog
-            sourceId={sheet.id}
-            url={state.sheets.dsa.find((s) => s.id === sheet.id)?.url ?? ''}
-            kind="dsa"
-            importedAt={state.sheets.dsa.find((s) => s.id === sheet.id)?.importedAt}
-            onImported={(iso) => markImported(sheet.id, iso)}
-          />
+          <SheetLog url={state.sheets.dsa.find((s) => s.id === sheet.id)?.url ?? ''} kind="dsa" />
         </section>
       ))}
       <div>

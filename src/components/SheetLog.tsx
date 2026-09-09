@@ -1,29 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { loadGoogleSheet } from '../lib/googleSheets'
+import { GoogleConnect } from './GoogleConnect'
 import { googleAccessToken, subscribeGoogle } from '../lib/googleAuth'
-import { filterRows, loadPublicSheet, parseCsv, projectSheet, SHEET_META, type SheetKind, type SheetTable } from '../lib/sheets'
-import { getSheetCsv, saveSheetCsv } from '../lib/storage'
+import { loadSheetLog, type SheetLogVia } from '../lib/loadSheetLog'
+import { filterRows, SHEET_META, type SheetKind, type SheetTable } from '../lib/sheets'
 
 export function SheetLog({
-  sourceId,
   url,
   kind,
-  importedAt,
-  onImported,
 }: {
-  sourceId: string
   url: string
   kind: SheetKind
-  importedAt?: string
-  onImported?: (iso: string) => void
 }) {
   const meta = SHEET_META[kind]
   const [table, setTable] = useState<SheetTable | null>(null)
-  const [via, setVia] = useState<'google' | 'snapshot' | 'link' | ''>('')
+  const [via, setVia] = useState<SheetLogVia | ''>('')
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
-  const [rev, setRev] = useState(0)
   const [signedIn, setSignedIn] = useState(Boolean(googleAccessToken()))
 
   useEffect(() => subscribeGoogle(() => setSignedIn(Boolean(googleAccessToken()))), [])
@@ -32,7 +25,7 @@ export function SheetLog({
     let gone = false
     setLoading(true)
     setError('')
-    loadLog(sourceId, url)
+    loadSheetLog(url, kind)
       .then((result) => {
         if (gone) return
         if (!result) {
@@ -41,7 +34,7 @@ export function SheetLog({
           setError('')
           return
         }
-        setTable(projectSheet(result.table, meta.columns))
+        setTable(result.table)
         setVia(result.via)
       })
       .catch((e: unknown) => {
@@ -56,56 +49,32 @@ export function SheetLog({
     return () => {
       gone = true
     }
-  }, [sourceId, url, meta.columns, rev, signedIn])
+  }, [url, kind, signedIn])
 
   const rows = useMemo(() => (table ? filterRows(table, query) : []), [table, query])
 
-  async function onFile(file: File | undefined) {
-    if (!file) return
-    const text = await file.text()
-    const parsed = parseCsv(text)
-    if (!parsed.headers.length) {
-      setError('That file did not look like a CSV.')
-      return
-    }
-    await saveSheetCsv(sourceId, text)
-    const iso = new Date().toISOString()
-    onImported?.(iso)
-    setRev((n) => n + 1)
-  }
+  const needsSignIn = Boolean(url.trim()) && !signedIn && !loading && !table && Boolean(error)
+  const showStatus = Boolean(via) || needsSignIn || loading || (Boolean(error) && !needsSignIn) || Boolean(table)
 
-  const empty = !url.trim() && !importedAt && !table && !loading && !error
+  if (!showStatus) return null
 
   return (
     <div className="stack">
-      <div className="row">
-        <label className="btn ghost file-btn">
-          Import CSV
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              void onFile(file)
-            }}
-          />
-        </label>
-        <button className="btn ghost" type="button" onClick={() => setRev((n) => n + 1)}>
-          Reload
-        </button>
-      </div>
-      {via === 'google' ? <p className="faint">Live from your Google account. The sheet can stay private.</p> : null}
-      {via === 'snapshot' && importedAt ? (
-        <p className="faint">Private copy imported {new Date(importedAt).toLocaleString()}. Re-import to refresh.</p>
+      {via === 'google' ? (
+        <div className="row">
+          <p className="faint">Live from your Google account.</p>
+          <GoogleConnect compact />
+        </div>
       ) : null}
-      {via === 'snapshot' && !importedAt ? <p className="faint">Private CSV copy in this browser. Re-import to refresh.</p> : null}
-      {via === 'link' ? (
-        <p className="faint">Loaded from a public link. Prefer CSV import or Google sign-in so the sheet can stay restricted.</p>
+      {via === 'link' ? <p className="faint">Loaded from a public sheet link.</p> : null}
+      {needsSignIn ? (
+        <div className="stack">
+          <p className="muted">This sheet looks private. Sign in to read it live.</p>
+          <GoogleConnect />
+        </div>
       ) : null}
-      {empty ? <p className="empty">{meta.empty}</p> : null}
       {loading ? <p className="muted">Loading sheet…</p> : null}
-      {error && !loading ? <p className="muted">{error}</p> : null}
+      {error && !loading && !needsSignIn ? <p className="muted">{error}</p> : null}
       {table && !loading ? (
         <>
           <input type="text" value={query} placeholder={meta.search} onChange={(e) => setQuery(e.target.value)} />
@@ -117,32 +86,6 @@ export function SheetLog({
       ) : null}
     </div>
   )
-}
-
-async function loadLog(
-  sourceId: string,
-  url: string,
-): Promise<{ table: SheetTable; via: 'google' | 'snapshot' | 'link' } | null> {
-  const token = googleAccessToken()
-  const errors: string[] = []
-  if (url.trim() && token) {
-    try {
-      return { table: await loadGoogleSheet(url, token), via: 'google' }
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : 'Google read failed.')
-    }
-  }
-  const csv = await getSheetCsv(sourceId)
-  if (csv) return { table: parseCsv(csv), via: 'snapshot' }
-  if (url.trim()) {
-    try {
-      return { table: await loadPublicSheet(url), via: 'link' }
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : 'Link read failed.')
-    }
-  }
-  if (!url.trim() && !errors.length) return null
-  throw new Error(errors[0] || 'Import a CSV, or sign in with Google and paste the private sheet URL.')
 }
 
 function AppsList({ rows }: { rows: Record<string, string>[] }) {

@@ -8,24 +8,36 @@ export function CategoryGlance({ category }: { category: Category }) {
   const { state } = useStore()
   const have = minutesToday(state)[category]
   const goal = state.goals[category]
+  const met = have >= goal
   const pct = Math.min(100, (have / Math.max(1, goal)) * 100)
   const todayCount = sessionsOn(state, todayKey()).filter((s) => CATEGORY_BY_KIND[s.kind] === category).length
 
   return (
-    <section className={`card glance cat-${category}`}>
-      <p className="kicker">Today</p>
-      <h2>
-        {Math.round(have)}m / {goal}m
-      </h2>
-      <div className="bar" style={{ marginTop: 12 }}>
-        <span style={{ width: `${pct}%` }} />
+    <section className={`card glance cat-${category}${met ? ' is-met' : ''}`}>
+      <div className="glance-main">
+        <p className="kicker">Today</p>
+        <h2 className="goal-label">
+          {Math.round(have)}m / {goal}m
+        </h2>
+        <div className={`bar${met ? ' is-full' : ''}`}>
+          <span style={{ width: `${pct}%` }} />
+        </div>
+        {met ? (
+          <p className="glance-status">
+            <span className="chip goal-met-chip">Goal met</span>
+            <span className="muted">
+              {todayCount === 1 ? '1 session today' : `${todayCount} sessions today`}
+            </span>
+          </p>
+        ) : (
+          <p className="muted">
+            {todayCount === 1 ? '1 session today' : `${todayCount} sessions today`}
+            {' · '}
+            {CATEGORY_LABEL[category]}
+          </p>
+        )}
       </div>
-      <p className="muted" style={{ marginTop: 10 }}>
-        {todayCount === 1 ? '1 session today' : `${todayCount} sessions today`}
-        {' · '}
-        {CATEGORY_LABEL[category]}
-      </p>
-      <StreakCalendar category={category} compact days={21} />
+      <StreakCalendar category={category} compact days={14} />
     </section>
   )
 }

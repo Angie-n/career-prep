@@ -11,8 +11,8 @@ This is not a task manager. The home screen answers four questions:
 
 ## Practice loops
 
-- **Interview drill (50 min)** — 20 min draft (bullets, not a script) → 10 min deliver with the draft hidden → 20 min of unexpected cold questions (think, then speak).
-- **Cold questions (20 min)** — no notes.
+- **Interview drill (50 min)** — 20 min draft (bullets, not a script) → 10 min deliver with the draft hidden → 20 min of rapid-fire unexpected prompts (think, then speak).
+- **Rapid Fire (20 min)** — no notes.
 - **Story retrieval (15 min)** — one experience, several angles.
 - **Quick drill (15 min)** — a shorter version of the same loop.
 
@@ -32,3 +32,5 @@ Everything stays in this browser (`localStorage` + `IndexedDB` for audio). There
 npm install
 npm run dev
 ```
+
+Dev server URL used for Google Sheets OAuth: **http://localhost:5188**. In Google Cloud Console → Credentials → your OAuth client ID (Web), add that exact string as an Authorized JavaScript origin (not `5173`).

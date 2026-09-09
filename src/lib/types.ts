@@ -5,13 +5,13 @@ export type Category = (typeof CATEGORIES)[number]
 export const CATEGORY_LABEL: Record<Category, string> = {
   applications: 'Applications',
   communication: 'Communication',
-  dsa: 'Data systems & algorithms',
+  dsa: 'Data Structures and Algorithms',
 }
 
 export const CATEGORY_BLURB: Record<Category, string> = {
   applications: 'Looking and applying. Time on the hunt — not mixed into interview drills.',
-  communication: 'Talking about the work. Draft, deliver from that draft, or go cold.',
-  dsa: 'Problem reps and systems/algorithms study. Tracked on its own clock.',
+  communication: 'Talking about the work. Draft, deliver from that draft, or rapid-fire prompts.',
+  dsa: 'Problem reps and algorithms study. Tracked on its own clock.',
 }
 
 export type Story = {
@@ -74,6 +74,19 @@ export type SessionAnswer = {
   audioId?: string
 }
 
+export type DsaRetrievedItem = {
+  /** Stable id for UI edits during a session. */
+  id?: string
+  problem: string
+  difficulty: string
+  topics: string
+  notes: string
+  /** Whether the user marked this problem as completed in the session. */
+  solved?: boolean
+  /** Time spent on this problem while solving the current session (seconds). */
+  timeSec?: number
+}
+
 export type Reflection = {
   note: string
 }
@@ -85,10 +98,15 @@ export type PracticeSession = {
   completedAt?: string
   phases: PlannedPhase[]
   answers: SessionAnswer[]
+  dsaRetrieved?: DsaRetrievedItem[]
   reflection?: Reflection
   categoryMinutes: Partial<Record<Category, number>>
   inProgress: boolean
   currentPhaseIndex: number
+  /** Wall-clock start of the current phase (ISO). Used to compute elapsed time. */
+  phaseStartedAt?: string
+  /** When paused, elapsed seconds frozen here instead of wall clock. */
+  phasePausedElapsedSec?: number
 }
 
 export type DailyGoals = Record<Category, number>
@@ -182,9 +200,9 @@ export const SESSION_META: Record<
     blurb: 'Same question. Draft hidden. Speak it.',
   },
   'comm-cold': {
-    title: 'Cold questions',
+    title: 'Rapid Fire',
     minutes: 20,
-    blurb: 'Unexpected prompts. Short think, then speak. No notes.',
+    blurb: 'Rapid-fire unexpected prompts. Short think, then speak. No notes.',
   },
   'apps-block': {
     title: 'Application block',
@@ -194,7 +212,7 @@ export const SESSION_META: Record<
   'dsa-block': {
     title: 'DSA block',
     minutes: 45,
-    blurb: 'Clock for data systems and algorithms. Problems live in your tracker sheet.',
+    blurb: 'Clock for data structures and algorithms. Problems live in your tracker sheet.',
   },
   'interview-drill': {
     title: 'Interview drill (legacy)',
@@ -202,7 +220,7 @@ export const SESSION_META: Record<
     blurb: 'Older combined loop.',
   },
   'cold-burst': {
-    title: 'Cold questions (legacy)',
+    title: 'Rapid Fire (legacy)',
     minutes: 20,
     blurb: 'Older combined loop.',
   },
