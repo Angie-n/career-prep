@@ -1,0 +1,238 @@
+export const CATEGORIES = ['applications', 'communication', 'dsa'] as const
+
+export type Category = (typeof CATEGORIES)[number]
+
+export const CATEGORY_LABEL: Record<Category, string> = {
+  applications: 'Applications',
+  communication: 'Communication',
+  dsa: 'Data systems & algorithms',
+}
+
+export const CATEGORY_BLURB: Record<Category, string> = {
+  applications: 'Looking and applying. Time on the hunt — not mixed into interview drills.',
+  communication: 'Talking about the work. Draft, deliver from that draft, or go cold.',
+  dsa: 'Problem reps and systems/algorithms study. Tracked on its own clock.',
+}
+
+export type Story = {
+  id: string
+  title: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type Question = {
+  id: string
+  prompt: string
+  custom: boolean
+}
+
+export type SessionKind =
+  | 'comm-draft'
+  | 'comm-deliver'
+  | 'comm-cold'
+  | 'apps-block'
+  | 'dsa-block'
+  | 'interview-drill'
+  | 'cold-burst'
+  | 'story-retrieval'
+  | 'quick-drill'
+
+export const COMM_KINDS: SessionKind[] = ['comm-draft', 'comm-deliver', 'comm-cold']
+
+export const CATEGORY_BY_KIND: Record<SessionKind, Category> = {
+  'comm-draft': 'communication',
+  'comm-deliver': 'communication',
+  'comm-cold': 'communication',
+  'apps-block': 'applications',
+  'dsa-block': 'dsa',
+  'interview-drill': 'communication',
+  'cold-burst': 'communication',
+  'story-retrieval': 'communication',
+  'quick-drill': 'communication',
+}
+
+export type PhaseKind = 'draft' | 'deliver' | 'think' | 'speak' | 'block'
+
+export type PlannedPhase = {
+  id: string
+  kind: PhaseKind
+  durationSec: number
+  questionId: string
+  storyId?: string
+  prompt: string
+  notes?: string
+}
+
+export type SessionAnswer = {
+  questionId: string
+  prompt: string
+  storyId?: string
+  draftNotes: string
+  transcript: string
+  audioId?: string
+}
+
+export type Reflection = {
+  note: string
+}
+
+export type PracticeSession = {
+  id: string
+  kind: SessionKind
+  startedAt: string
+  completedAt?: string
+  phases: PlannedPhase[]
+  answers: SessionAnswer[]
+  reflection?: Reflection
+  categoryMinutes: Partial<Record<Category, number>>
+  inProgress: boolean
+  currentPhaseIndex: number
+}
+
+export type DailyGoals = Record<Category, number>
+
+export type MaxStreaks = Record<Category, number>
+
+export const DURATION_KINDS = [
+  'comm-draft',
+  'comm-deliver',
+  'comm-cold',
+  'apps-block',
+  'dsa-block',
+] as const
+
+export type DurationKind = (typeof DURATION_KINDS)[number]
+
+export type SessionDurations = Record<DurationKind, number>
+
+export type SheetLink = {
+  url: string
+  importedAt?: string
+}
+
+export type NamedSheet = {
+  id: string
+  name: string
+  url: string
+  importedAt?: string
+}
+
+export type AppState = {
+  stories: Story[]
+  customQuestions: Question[]
+  sessions: PracticeSession[]
+  goals: DailyGoals
+  maxStreaks: MaxStreaks
+  durations: SessionDurations
+  sheets: { applications: SheetLink; dsa: NamedSheet[] }
+  activeSessionId: string | null
+}
+
+export const DEFAULT_GOALS: DailyGoals = {
+  applications: 30,
+  communication: 40,
+  dsa: 45,
+}
+
+export const DEFAULT_MAX_STREAKS: MaxStreaks = {
+  applications: 0,
+  communication: 0,
+  dsa: 0,
+}
+
+export const DEFAULT_DURATIONS: SessionDurations = {
+  'comm-draft': 15,
+  'comm-deliver': 10,
+  'comm-cold': 20,
+  'apps-block': 25,
+  'dsa-block': 45,
+}
+
+export const DEFAULT_SHEETS: AppState['sheets'] = {
+  applications: { url: '' },
+  dsa: [{ id: 'dsa-1', name: 'Tracker 1', url: '' }],
+}
+
+export function clampMinutes(n: number, fallback: number): number {
+  if (!Number.isFinite(n) || n < 1) return fallback
+  return Math.min(180, Math.round(n))
+}
+
+export function durationFor(durations: SessionDurations, kind: SessionKind): number {
+  if ((DURATION_KINDS as readonly string[]).includes(kind)) {
+    return durations[kind as DurationKind]
+  }
+  return SESSION_META[kind].minutes
+}
+
+export const SESSION_META: Record<
+  SessionKind,
+  { title: string; minutes: number; blurb: string }
+> = {
+  'comm-draft': {
+    title: 'Draft the answer',
+    minutes: 15,
+    blurb: 'One question. Write the version you would actually say — tight, not a script to memorize.',
+  },
+  'comm-deliver': {
+    title: 'Talk from the draft',
+    minutes: 10,
+    blurb: 'Same question. Draft hidden. Speak it.',
+  },
+  'comm-cold': {
+    title: 'Cold questions',
+    minutes: 20,
+    blurb: 'Unexpected prompts. Short think, then speak. No notes.',
+  },
+  'apps-block': {
+    title: 'Application block',
+    minutes: 25,
+    blurb: 'Clock for looking and applying. The log comes from your sheet.',
+  },
+  'dsa-block': {
+    title: 'DSA block',
+    minutes: 45,
+    blurb: 'Clock for data systems and algorithms. Problems live in your tracker sheet.',
+  },
+  'interview-drill': {
+    title: 'Interview drill (legacy)',
+    minutes: 50,
+    blurb: 'Older combined loop.',
+  },
+  'cold-burst': {
+    title: 'Cold questions (legacy)',
+    minutes: 20,
+    blurb: 'Older combined loop.',
+  },
+  'story-retrieval': {
+    title: 'Story retrieval (legacy)',
+    minutes: 15,
+    blurb: 'Older combined loop.',
+  },
+  'quick-drill': {
+    title: 'Quick drill (legacy)',
+    minutes: 15,
+    blurb: 'Older combined loop.',
+  },
+}
+
+export function emptyStory(): Omit<Story, 'id' | 'createdAt' | 'updatedAt'> {
+  return { title: '', notes: '' }
+}
+
+export function emptyReflection(): Reflection {
+  return { note: '' }
+}
+
+export function normalizeReflection(raw: unknown): Reflection | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  if (typeof r.note === 'string') return { note: r.note }
+  const parts = ['stuck', 'ramble', 'explainedWell', 'knowledgeGap', 'practiceAgain']
+    .map((k) => r[k])
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+  if (!parts.length) return undefined
+  return { note: parts.join('\n') }
+}

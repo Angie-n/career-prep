@@ -1,0 +1,39 @@
+import { parseGrid, parseSheetUrl, type SheetTable } from './sheets'
+import { googleAccessToken } from './googleAuth'
+
+type SpreadsheetMeta = {
+  sheets?: { properties?: { sheetId?: number; title?: string } }[]
+}
+
+export async function loadGoogleSheet(url: string, accessToken = googleAccessToken()): Promise<SheetTable> {
+  if (!accessToken) throw new Error('Sign in with Google to read a private sheet.')
+  const ref = parseSheetUrl(url)
+  if (!ref) throw new Error('Paste a Google Sheets link (the full URL from the address bar).')
+
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${ref.id}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  if (metaRes.status === 401 || metaRes.status === 403) {
+    throw new Error('Google access expired or was denied. Sign in again.')
+  }
+  if (!metaRes.ok) throw new Error(`Could not open the spreadsheet (${metaRes.status}).`)
+  const meta = (await metaRes.json()) as SpreadsheetMeta
+  const tabs = meta.sheets ?? []
+  const gid = Number(ref.gid)
+  const tab =
+    tabs.find((s) => s.properties?.sheetId === gid) ??
+    tabs.find((s) => s.properties?.title) ??
+    tabs[0]
+  const title = tab?.properties?.title
+  if (!title) throw new Error('No tabs found on that spreadsheet.')
+
+  const range = encodeURIComponent(title)
+  const valuesRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${ref.id}/values/${range}?valueRenderOption=FORMATTED_VALUE`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  if (!valuesRes.ok) throw new Error(`Could not read sheet values (${valuesRes.status}).`)
+  const body = (await valuesRes.json()) as { values?: string[][] }
+  return parseGrid(body.values ?? [])
+}
