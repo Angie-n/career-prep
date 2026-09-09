@@ -2,7 +2,9 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig({
+// Project Pages live at https://angie-n.github.io/career-prep/ — base must match in production builds.
+export default defineConfig(({ mode }) => ({
+  base: mode === 'production' ? '/career-prep/' : '/',
   plugins: [react()],
   server: {
     proxy: {
@@ -17,4 +19,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
