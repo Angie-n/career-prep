@@ -9,9 +9,9 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 }
 
 export const CATEGORY_BLURB: Record<Category, string> = {
-  applications: 'Looking and applying. Time on the hunt — not mixed into interview drills.',
-  communication: 'Talking about the work. Draft, deliver from that draft, or rapid-fire prompts.',
-  dsa: 'Problem reps and algorithms study. Tracked on its own clock.',
+  applications: 'Hunt and apply. Pure clock time — no drills mixed in.',
+  communication: 'Say it out loud. Draft, deliver, or go cold.',
+  dsa: 'Reps under the clock. Problems stay on your tracker.',
 }
 
 export type Story = {
@@ -229,7 +229,7 @@ export const SESSION_META: Record<
   'comm-draft': {
     title: 'Draft the answer',
     minutes: 15,
-    blurb: 'One question. Write the version you would actually say — tight, not a script to memorize.',
+    blurb: "One question. Write what you'd actually say.",
   },
   'comm-deliver': {
     title: 'Talk from the draft',
@@ -239,17 +239,17 @@ export const SESSION_META: Record<
   'comm-cold': {
     title: 'Rapid Fire',
     minutes: 20,
-    blurb: 'Unexpected prompts. Speak under the clock — no notes, no warm-up.',
+    blurb: 'Unexpected prompts. Speak under the clock.',
   },
   'apps-block': {
-    title: 'Application block',
+    title: 'Apply Yourself',
     minutes: 25,
-    blurb: 'Clock for looking and applying. The log comes from your sheet.',
+    blurb: 'Look, apply, follow up.',
   },
   'dsa-block': {
-    title: 'DSA block',
+    title: 'Problem Solve',
     minutes: 45,
-    blurb: 'Clock for data structures and algorithms. Problems live in your tracker sheet.',
+    blurb: 'Pick problems. Solve under the clock.',
   },
   'interview-drill': {
     title: 'Interview drill (legacy)',

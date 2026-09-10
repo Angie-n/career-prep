@@ -1,4 +1,3 @@
-import { AppSignIn } from '../components/AppSignIn'
 import { CATEGORIES, CATEGORY_BLURB, CATEGORY_LABEL } from '../lib/types'
 import { useStore } from '../state/Store'
 
@@ -7,17 +6,11 @@ export function Goals() {
 
   return (
     <div className="stack">
-      <div>
+      <div className="page-head">
         <p className="kicker">Goals</p>
-        <h1>Daily minutes</h1>
-        <p className="lead">Three buckets. A session counts toward exactly one of them.</p>
+        <h1>Set the bar</h1>
+        <p className="lead">Three buckets. Hit them daily — a session counts toward exactly one.</p>
       </div>
-
-      <section className="card">
-        <h2>Account</h2>
-        <p className="faint">Sign in so your data can sync to the cloud (D1). Sheets connect stays separate.</p>
-        <AppSignIn />
-      </section>
 
       <section className="card">
         <h2>Per day</h2>

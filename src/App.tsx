@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-
 import { Layout } from './components/Layout'
 import { PromptCategoryDetail, PromptsBank } from './components/PromptsBank'
 import { StoriesBank } from './components/StoriesBank'
+import { Account } from './pages/Account'
 import { Active } from './pages/Active'
 import { CategoryHistory } from './pages/CategoryHistory'
 import { Dashboard } from './pages/Dashboard'
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/history" element={<Navigate to="/" replace />} />
             <Route path="/history/:id" element={<History />} />
             <Route path="/goals" element={<Goals />} />
+            <Route path="/account" element={<Account />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

@@ -6,22 +6,27 @@ import { isPhasePaused } from '../lib/sessionPlan'
 import { useStore } from '../state/Store'
 import { StreakCalendar } from './StreakCalendar'
 
-function useProgressClock(hasRunningSession: boolean) {
-  const [now, setNow] = useState(Date.now())
+function useProgressClock(hasRunningSession: boolean, sessionKey: string) {
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
+    setNow(Date.now())
     if (!hasRunningSession) return
     const id = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(id)
-  }, [hasRunningSession])
+  }, [hasRunningSession, sessionKey])
   return now
 }
 
 export function CategoryGlance({ category }: { category: Category }) {
   const { state } = useStore()
-  const running = state.sessions.some(
-    (s) => s.inProgress && CATEGORY_BY_KIND[s.kind] === category && !isPhasePaused(s),
+  const liveForCategory = state.sessions.filter(
+    (s) => s.inProgress && CATEGORY_BY_KIND[s.kind] === category,
   )
-  const now = useProgressClock(running)
+  const running = liveForCategory.some((s) => !isPhasePaused(s))
+  const now = useProgressClock(
+    running,
+    liveForCategory.map((s) => s.id).join('|'),
+  )
   const have = minutesToday(state, todayKey(), now)[category]
   const goal = state.goals[category]
   const met = have >= goal

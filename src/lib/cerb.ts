@@ -26,7 +26,9 @@ export const CERB: Record<CerbMood, { src: string; status: string; alt: string }
 export function cerbMood(mins: Record<Category, number>, goals: DailyGoals): CerbMood {
   const allMet = CATEGORIES.every((c) => mins[c] >= goals[c])
   if (allMet) return 'happy'
-  const anyProgress = CATEGORIES.some((c) => mins[c] > 0)
-  if (!anyProgress) return 'angry'
+  const credited = CATEGORIES.reduce((n, c) => n + Math.min(mins[c], goals[c]), 0)
+  const totalGoal = CATEGORIES.reduce((n, c) => n + goals[c], 0)
+  const pct = totalGoal > 0 ? (credited / totalGoal) * 100 : 0
+  if (pct < 10) return 'angry'
   return 'disappointed'
 }

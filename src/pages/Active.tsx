@@ -48,14 +48,14 @@ export function Active() {
   if (sessionId && !session) {
     return (
       <div className="stack">
-        <section className="card quiet">
+        <section className="card quiet page-head">
           <p className="kicker">Active Sessions</p>
-          <h1>Session not found</h1>
+          <h1>Gone cold</h1>
           <p className="lead">That block is no longer in progress.</p>
           <p className="muted" style={{ marginTop: 12 }}>
             <Link to="/active">All active sessions</Link>
             {' · '}
-            <Link to="/">Today</Link>
+            <Link to="/">Dashboard</Link>
           </p>
         </section>
       </div>
@@ -68,10 +68,10 @@ export function Active() {
       : live
     return (
       <div className="stack">
-        <div>
+        <div className="page-head">
           <p className="kicker">Active Sessions</p>
-          <h1>{shown.length === 1 ? '1 session in progress' : `${shown.length} sessions in progress`}</h1>
-          <p className="lead">Resume a block below — each category can keep one paused session.</p>
+          <h1>Finish What You Started</h1>
+          <p className="lead">Resume your session from where you left off.</p>
         </div>
         {shown.map((s) => (
           <ResumeSessionCard key={s.id} session={s} headingLevel="h2" />
@@ -85,20 +85,20 @@ export function Active() {
 
   return (
     <div className="stack">
-      <section className="card quiet">
+      <section className="card quiet page-head">
         <p className="kicker">Active Sessions</p>
-        <h1>No active sessions</h1>
+        <h1>Nothing live</h1>
         <p className="lead">
-          Start a block from Today or a category home — the live studio lives here while you work.
+          Start a block from Dashboard or a category home — the studio lives here while you work.
         </p>
         <p className="muted" style={{ marginTop: 12 }}>
-          <Link to="/">Today</Link>
-          {' · '}
-          <Link to="/practice">Communication</Link>
+          <Link to="/">Dashboard</Link>
           {' · '}
           <Link to="/applications">Applications</Link>
           {' · '}
-          <Link to="/dsa">DSA</Link>
+          <Link to="/practice">Communication</Link>
+          {' · '}
+          <Link to="/dsa">Data Structures and Algorithms</Link>
         </p>
       </section>
     </div>

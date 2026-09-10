@@ -9,7 +9,7 @@ import type {
   SessionAnswer,
   SessionKind,
 } from './types'
-import { CATEGORY_BY_KIND, COMM_KINDS } from './types'
+import { CATEGORY_BY_KIND, COMM_KINDS, SESSION_META } from './types'
 
 export function allQuestions(
   custom: Question[],
@@ -207,7 +207,7 @@ export function buildSession(
       kind: 'block',
       durationSec: minutes * 60,
       questionId: kind,
-      prompt: opts?.note?.trim() || (kind === 'apps-block' ? 'Application block' : 'DSA block'),
+      prompt: opts?.note?.trim() || SESSION_META[kind].title,
     })
   }
 

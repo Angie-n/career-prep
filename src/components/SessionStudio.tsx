@@ -24,7 +24,8 @@ import { useStore } from '../state/Store'
 
 function dsaTrackerQuery(session: PracticeSession): string {
   const prompt = session.phases[0]?.prompt?.trim() ?? ''
-  if (!prompt || prompt === 'DSA block') return ''
+  // Default session titles are not tracker filters (legacy + current).
+  if (!prompt || prompt === 'DSA block' || prompt === SESSION_META['dsa-block'].title) return ''
   return prompt
 }
 

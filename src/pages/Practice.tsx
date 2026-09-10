@@ -99,7 +99,7 @@ export function Practice() {
             />
           ) : null}
           <button className="btn" type="button" onClick={() => start(k)} disabled={blocked}>
-            {existing ? 'Resume' : 'Start'}
+            {existing ? 'Resume' : 'Start now'}
           </button>
         </div>
       </section>
@@ -108,10 +108,10 @@ export function Practice() {
 
   return (
     <div className="stack">
-      <div>
+      <div className="page-head">
         <p className="kicker">Communication</p>
-        <h1>Practice speaking</h1>
-        <p className="lead">Draft. Talk from that draft. Or rapid fire.</p>
+        <h1>Practice Delivering</h1>
+        <p className="lead">Draft. Deliver. Or go cold — get reps in.</p>
       </div>
       <CategorySubnav category="communication" />
       <CategoryGlance category="communication" />

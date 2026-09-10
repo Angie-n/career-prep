@@ -3,12 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CategoryGlance } from '../components/CategoryGlance'
 import { CategorySubnav } from '../components/CategorySubnav'
 import { MinutesPicker } from '../components/MinutesPicker'
-import { ResumeSessionCard } from '../components/ResumeSessionCard'
 import { SheetLog } from '../components/SheetLog'
 import { uid } from '../lib/ids'
 import { activeSessionPath, buildSession } from '../lib/sessionPlan'
 import { retrieveDsaFromTrackers } from '../lib/retrieveDsa'
-import { deleteSheetCsv } from '../lib/storage'
+import { deleteSessionMedia, deleteSheetCsv } from '../lib/storage'
 import {
   CATEGORY_LABEL,
   SESSION_META,
@@ -37,7 +36,6 @@ export function WorkTrack({
   const [starting, setStarting] = useState(false)
   const meta = SESSION_META[kind]
   const tracking = pane === 'tracker'
-  const busy = Boolean(matchingActive)
 
   useEffect(() => {
     setMinutesLocal(goalMinutes)
@@ -77,16 +75,23 @@ export function WorkTrack({
     }
   }
 
+  function discard() {
+    if (!matchingActive) return
+    if (!window.confirm('Discard this in-progress session? Progress in this block will be lost.')) return
+    void deleteSessionMedia(matchingActive)
+    dispatch({ type: 'abandon-session', id: matchingActive.id })
+  }
+
   return (
     <div className="stack">
-      <div>
+      <div className="page-head">
         <p className="kicker">{CATEGORY_LABEL[category]}</p>
         <h1>{tracking ? 'Tracker' : meta.title}</h1>
         <p className="lead">
           {tracking
             ? category === 'applications'
-              ? 'Application log from your sheet.'
-              : 'Named sheet trackers for problems and notes.'
+              ? 'Your sheet is the log. Keep it honest.'
+              : 'Named trackers for problems and notes. Stay sharp.'
             : meta.blurb}
         </p>
       </div>
@@ -98,36 +103,47 @@ export function WorkTrack({
       ) : (
         <>
           <CategoryGlance category={category} />
-          {matchingActive ? <ResumeSessionCard session={matchingActive} headingLevel="h2" /> : null}
           <section className="card action start-card">
             <div className="start-card-copy">
-              <h2>Log a focused block</h2>
+              <h2>{meta.title}</h2>
               <p className="muted">
                 {matchingActive
-                  ? 'Or discard the session above to start a new block.'
+                  ? 'Pick up where you left off.'
                   : `This time counts only toward ${CATEGORY_LABEL[category].toLowerCase()}.`}
               </p>
             </div>
-            <label className="field start-card-note">
-              What are you working on? (optional)
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={category === 'applications' ? 'Company + role…' : 'Problem or topic…'}
-                disabled={busy}
-              />
-            </label>
+            {!matchingActive ? (
+              <label className="field start-card-note">
+                What are you working on? (optional)
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={category === 'applications' ? 'Company + role…' : 'Problem or topic…'}
+                />
+              </label>
+            ) : null}
             <div className="start-card-actions">
-              <MinutesPicker value={minutes} onChange={setMinutes} />
-              <button
-                className="btn"
-                type="button"
-                onClick={() => void start()}
-                disabled={starting || busy}
-              >
-                {starting ? 'Loading…' : busy ? 'Resume first' : 'Start'}
-              </button>
+              {!matchingActive ? <MinutesPicker value={minutes} onChange={setMinutes} /> : null}
+              {matchingActive ? (
+                <>
+                  <button className="btn" type="button" onClick={() => void start()}>
+                    Resume
+                  </button>
+                  <button className="btn ghost" type="button" onClick={discard}>
+                    Discard
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => void start()}
+                  disabled={starting}
+                >
+                  {starting ? 'Loading…' : 'Start now'}
+                </button>
+              )}
             </div>
           </section>
         </>
@@ -210,7 +226,7 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
     <div className="stack">
       <div>
         <p className="kicker">Spreadsheets</p>
-        <h2>DSA trackers</h2>
+        <h2>Data Structures and Algorithms trackers</h2>
         <p className="lead">Name each tracker and paste its sheet URL. Same columns: Date, Problem, Difficulty, Topics, Notes.</p>
       </div>
       {dsaDrafts.map((sheet, i) => (

@@ -1,16 +1,17 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { phaseElapsedSec, isPhasePaused } from '../lib/sessionPlan'
 import { CATEGORY_BY_KIND, CATEGORY_LABEL, type Category, type SessionKind } from '../lib/types'
 import { useStore } from '../state/Store'
 
 const links = [
-  { to: '/', label: 'Today', end: true },
+  { to: '/', label: 'Dashboard', end: true },
   { to: '/active', label: 'Active Sessions', end: false },
-  { to: '/practice', label: 'Communication', end: false },
   { to: '/applications', label: 'Applications', end: false },
-  { to: '/dsa', label: 'DSA', end: false },
+  { to: '/practice', label: 'Communication', end: false },
+  { to: '/dsa', label: 'Data Structures and Algorithms', end: false },
   { to: '/goals', label: 'Goals', end: true },
+  { to: '/account', label: 'Account', end: true },
 ]
 
 /** Category chrome from the route (and history detail), never from a live session elsewhere. */
@@ -36,11 +37,24 @@ function studioSessionId(path: string): string | null {
   return id || null
 }
 
+function MenuIcon() {
+  return (
+    <span className="nav-toggle-bars" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </span>
+  )
+}
+
 export function Layout() {
   const location = useLocation()
   const { state, dispatch } = useStore()
   const lastStudioIdRef = useRef<string | null>(null)
   const didInitPauseRef = useRef(false)
+  const navRef = useRef<HTMLElement>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuId = useId()
 
   const historyId = location.pathname.startsWith('/history/')
     ? location.pathname.slice('/history/'.length)
@@ -57,6 +71,7 @@ export function Layout() {
   })
   const classes = ['app-shell']
   if (mode) classes.push(`mode-${mode}`)
+  if (menuOpen) classes.push('nav-open')
 
   // Leaving a studio (or switching sessions) freezes that session's clock.
   // On first paint outside a studio, freeze any still-running clocks from a prior visit.
@@ -91,21 +106,63 @@ export function Layout() {
     lastStudioIdRef.current = nextId
   }, [routeSessionId, state.sessions, dispatch])
 
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+
+    function onPointer(e: MouseEvent | TouchEvent) {
+      const target = e.target as Node | null
+      if (target && navRef.current && !navRef.current.contains(target)) {
+        setMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('touchstart', onPointer)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('touchstart', onPointer)
+    }
+  }, [menuOpen])
+
   return (
     <div className={classes.join(' ')}>
-      <aside className="nav">
-        <div className="brand">
-          <div>
-            <strong>Career Studio</strong>
-            <small>{mode ? CATEGORY_LABEL[mode] : 'Practice'}</small>
+      <aside className="nav" ref={navRef}>
+        <div className="nav-bar">
+          <div className="brand">
+            <div>
+              <strong>Career Studio</strong>
+              <small>{mode ? CATEGORY_LABEL[mode] : 'Practice'}</small>
+            </div>
           </div>
+          <button
+            className="nav-toggle"
+            type="button"
+            aria-expanded={menuOpen}
+            aria-controls={menuId}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <MenuIcon />
+          </button>
         </div>
-        <nav className="nav-links">
-          {links.map((l) => (
-            <NavLink key={l.to} to={l.to} end={l.end}>
-              {l.label}
-            </NavLink>
-          ))}
+        <nav className="nav-links" id={menuId}>
+          <div className="nav-links-inner">
+            {links.map((l) => (
+              <NavLink key={l.to} to={l.to} end={l.end} onClick={() => setMenuOpen(false)}>
+                {l.label}
+              </NavLink>
+            ))}
+          </div>
         </nav>
         <div className="nav-foot">Start. Speak. Don’t drift.</div>
       </aside>

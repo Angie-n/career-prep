@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { activeSessionPath } from '../lib/sessionPlan'
 import { deleteSessionMedia } from '../lib/storage'
-import { CATEGORY_BY_KIND, CATEGORY_LABEL, SESSION_META, type PracticeSession } from '../lib/types'
+import { CATEGORY_BY_KIND, SESSION_META, type PracticeSession } from '../lib/types'
 import { useStore } from '../state/Store'
 
 export function ResumeSessionCard({
@@ -27,9 +27,7 @@ export function ResumeSessionCard({
     <section className={`card action cat-${category}`}>
       <p className="kicker">In progress</p>
       <Title>{meta.title}</Title>
-      <p className="lead">
-        Resume your {CATEGORY_LABEL[category].toLowerCase()} session — timer and answers are saved.
-      </p>
+      <p className="lead">Pick up where you left off.</p>
       <div className="row">
         <button className="btn" type="button" onClick={() => navigate(activeSessionPath(session.id))}>
           Resume
