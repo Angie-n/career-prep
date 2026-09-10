@@ -215,66 +215,72 @@ export function dedupeInProgressSessions(sessions: PracticeSession[]): PracticeS
   })
 }
 
+/** Run the same migrators used for localStorage on any AppState-shaped JSON (e.g. D1). */
+export function normalizeState(input: unknown): AppState {
+  if (!input || typeof input !== 'object') return emptyState()
+  const parsed = input as AppState & { removedQuestionIds?: unknown }
+  const migratedSessions = (parsed.sessions ?? []).map((s) => {
+    const rawS = s as typeof s & {
+      phasePausedRemainingSec?: number
+      phasePausedElapsedSec?: number
+    }
+    const session = {
+      ...rawS,
+      reflection: normalizeReflection(rawS.reflection),
+    }
+    if (
+      typeof session.phasePausedRemainingSec === 'number' &&
+      session.phasePausedElapsedSec == null
+    ) {
+      const phase = session.phases?.[session.currentPhaseIndex]
+      const remaining = session.phasePausedRemainingSec
+      const duration = phase?.durationSec ?? remaining
+      session.phasePausedElapsedSec = Math.max(0, Math.floor(duration - remaining))
+    }
+    delete session.phasePausedRemainingSec
+    if (session.inProgress && !session.phaseStartedAt && session.phasePausedElapsedSec == null) {
+      session.phaseStartedAt = new Date().toISOString()
+    }
+    return session
+  })
+  const sessions = dedupeInProgressSessions(migratedSessions)
+  let activeSessionId = parsed.activeSessionId ?? null
+  if (activeSessionId && !sessions.some((s) => s.id === activeSessionId && s.inProgress)) {
+    activeSessionId = sessions.find((s) => s.inProgress)?.id ?? null
+  }
+  const promptCategories = migratePromptCategories(parsed.promptCategories)
+  const categoryIds = promptCategories.map((c) => c.id)
+  const categoryIdSet = new Set(categoryIds)
+  const base: AppState = {
+    stories: migrateStories(parsed.stories),
+    promptCategories,
+    customQuestions: migrateQuestions(parsed.customQuestions, categoryIdSet),
+    removedQuestionIds: migrateRemovedQuestionIds(parsed.removedQuestionIds),
+    drillPromptCategoryIds: migrateDrillPromptCategoryIds(
+      (parsed as AppState).drillPromptCategoryIds,
+      categoryIds,
+    ),
+    sessions,
+    goals: migrateGoals(parsed.goals),
+    maxStreaks: migrateMaxStreaks(parsed.maxStreaks),
+    durations: migrateDurations(parsed.durations),
+    sheets: {
+      applications: {
+        url: parsed.sheets?.applications?.url ?? '',
+        importedAt: parsed.sheets?.applications?.importedAt,
+      },
+      dsa: migrateDsaSheets(parsed.sheets?.dsa),
+    },
+    activeSessionId,
+  }
+  return { ...base, maxStreaks: withUpdatedMaxStreaks(base) }
+}
+
 export function loadState(): AppState {
   const raw = localStorage.getItem(KEY)
   if (!raw) return emptyState()
   try {
-    const parsed = JSON.parse(raw) as AppState & { removedQuestionIds?: unknown }
-    const migratedSessions = (parsed.sessions ?? []).map((s) => {
-      const rawS = s as typeof s & {
-        phasePausedRemainingSec?: number
-        phasePausedElapsedSec?: number
-      }
-      const session = {
-        ...rawS,
-        reflection: normalizeReflection(rawS.reflection),
-      }
-      if (
-        typeof session.phasePausedRemainingSec === 'number' &&
-        session.phasePausedElapsedSec == null
-      ) {
-        const phase = session.phases?.[session.currentPhaseIndex]
-        const remaining = session.phasePausedRemainingSec
-        const duration = phase?.durationSec ?? remaining
-        session.phasePausedElapsedSec = Math.max(0, Math.floor(duration - remaining))
-      }
-      delete session.phasePausedRemainingSec
-      if (session.inProgress && !session.phaseStartedAt && session.phasePausedElapsedSec == null) {
-        session.phaseStartedAt = new Date().toISOString()
-      }
-      return session
-    })
-    const sessions = dedupeInProgressSessions(migratedSessions)
-    let activeSessionId = parsed.activeSessionId ?? null
-    if (activeSessionId && !sessions.some((s) => s.id === activeSessionId && s.inProgress)) {
-      activeSessionId = sessions.find((s) => s.inProgress)?.id ?? null
-    }
-    const promptCategories = migratePromptCategories(parsed.promptCategories)
-    const categoryIds = promptCategories.map((c) => c.id)
-    const categoryIdSet = new Set(categoryIds)
-    const base: AppState = {
-      stories: migrateStories(parsed.stories),
-      promptCategories,
-      customQuestions: migrateQuestions(parsed.customQuestions, categoryIdSet),
-      removedQuestionIds: migrateRemovedQuestionIds(parsed.removedQuestionIds),
-      drillPromptCategoryIds: migrateDrillPromptCategoryIds(
-        (parsed as AppState).drillPromptCategoryIds,
-        categoryIds,
-      ),
-      sessions,
-      goals: migrateGoals(parsed.goals),
-      maxStreaks: migrateMaxStreaks(parsed.maxStreaks),
-      durations: migrateDurations(parsed.durations),
-      sheets: {
-        applications: {
-          url: parsed.sheets?.applications?.url ?? '',
-          importedAt: parsed.sheets?.applications?.importedAt,
-        },
-        dsa: migrateDsaSheets(parsed.sheets?.dsa),
-      },
-      activeSessionId,
-    }
-    return { ...base, maxStreaks: withUpdatedMaxStreaks(base) }
+    return normalizeState(JSON.parse(raw))
   } catch {
     return emptyState()
   }

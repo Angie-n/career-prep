@@ -24,9 +24,9 @@ Experiences split into situation, what you noticed, constraints, options, decisi
 
 ## Data
 
-App state still lives in this browser (`localStorage` + `IndexedDB` for audio) until sync lands. **Account** (Goals → Sign in with Google) identifies you to the Cloudflare Worker / D1 backend. Sheets connect remains a separate Google access-token flow.
-
-Infra notes: [docs/infra-design-exploration.md](docs/infra-design-exploration.md).
+App state still lives in this browser (`localStorage` + `IndexedDB` for audio). When you **sign in**
+(Account), the full app JSON (except audio blobs / sheet CSV cache) syncs to Cloudflare D1
+(last-write-wins). Infra notes: [docs/infra-design-exploration.md](docs/infra-design-exploration.md).
 
 ## Run
 

@@ -1,4 +1,12 @@
-import { createContext, createElement, useContext, useMemo, useReducer, useEffect, type ReactNode } from 'react'
+import { createContext, createElement, useContext, useMemo, useReducer, useEffect, useRef, type ReactNode } from 'react'
+import {
+  beginRemoteHydrate,
+  endRemoteHydrate,
+  reconcileOnSignIn,
+  resetSyncStatus,
+  schedulePush,
+} from '../lib/cloudSync'
+import { isAppSignedIn, subscribeAppAuth } from '../lib/appAuth'
 import { uid } from '../lib/ids'
 import { withUpdatedMaxStreaks } from '../lib/insights'
 import { SEED_QUESTIONS } from '../lib/seedQuestions'
@@ -18,6 +26,7 @@ import type {
 } from '../lib/types'
 
 type Action =
+  | { type: 'replace-state'; state: AppState }
   | { type: 'upsert-story'; story: Story }
   | { type: 'delete-story'; id: string }
   | { type: 'upsert-prompt-category'; category: PromptCategory }
@@ -86,6 +95,8 @@ function isSeedQuestion(id: string): boolean {
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'replace-state':
+      return action.state
     case 'upsert-story': {
       const exists = state.stories.some((s) => s.id === action.story.id)
       return {
@@ -270,10 +281,51 @@ const StoreContext = createContext<{
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState)
+  const stateRef = useRef(state)
+  const skipNextPushRef = useRef(false)
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   useEffect(() => {
     saveState(state)
+    if (skipNextPushRef.current) {
+      skipNextPushRef.current = false
+      endRemoteHydrate()
+      return
+    }
+    schedulePush(state)
   }, [state])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const runReconcile = async () => {
+      if (!isAppSignedIn()) {
+        resetSyncStatus()
+        return
+      }
+      try {
+        const remote = await reconcileOnSignIn(stateRef.current)
+        if (cancelled || !remote) return
+        beginRemoteHydrate()
+        skipNextPushRef.current = true
+        dispatch({ type: 'replace-state', state: remote })
+      } catch {
+        /* status already set in cloudSync */
+      }
+    }
+
+    void runReconcile()
+    return subscribeAppAuth(() => {
+      if (!isAppSignedIn()) {
+        resetSyncStatus()
+        return
+      }
+      void runReconcile()
+    })
+  }, [])
 
   const value = useMemo(() => ({ state, dispatch }), [state])
   return createElement(StoreContext.Provider, { value }, children)

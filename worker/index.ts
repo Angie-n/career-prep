@@ -1,5 +1,5 @@
 import { bearerToken, verifyGoogleIdToken } from './auth'
-import { getUser, upsertUser } from './db'
+import { getUser, getUserState, putUserState, upsertUser } from './db'
 
 export type Env = {
   DB: D1Database
@@ -45,6 +45,49 @@ export default {
       const { user } = result as { user: Awaited<ReturnType<typeof upsertUser>> }
       const stored = await getUser(env.DB, user.id)
       return json({ user: stored ?? user })
+    }
+
+    if (url.pathname === '/api/state') {
+      const result = await requireUser(request, env)
+      if ('error' in result && result.error) return result.error
+      const { user } = result as { user: Awaited<ReturnType<typeof upsertUser>> }
+
+      if (request.method === 'GET') {
+        const row = await getUserState(env.DB, user.id)
+        if (!row) return json({ state: null, updatedAt: null })
+        let state: unknown
+        try {
+          state = JSON.parse(row.stateJson)
+        } catch {
+          return json({ error: 'Stored state is not valid JSON.' }, { status: 500 })
+        }
+        return json({ state, updatedAt: row.updatedAt })
+      }
+
+      if (request.method === 'PUT') {
+        let body: { state?: unknown; updatedAt?: unknown }
+        try {
+          body = (await request.json()) as { state?: unknown; updatedAt?: unknown }
+        } catch {
+          return json({ error: 'Invalid JSON body.' }, { status: 400 })
+        }
+        if (!body.state || typeof body.state !== 'object' || Array.isArray(body.state)) {
+          return json({ error: 'Body must include a state object.' }, { status: 400 })
+        }
+        const updatedAt =
+          typeof body.updatedAt === 'string' && body.updatedAt
+            ? body.updatedAt
+            : new Date().toISOString()
+        const stateJson = JSON.stringify(body.state)
+        // Soft guard against accidental huge payloads (audio stays in IndexedDB).
+        if (stateJson.length > 2_500_000) {
+          return json({ error: 'State payload too large.' }, { status: 413 })
+        }
+        await putUserState(env.DB, user.id, stateJson, updatedAt)
+        return json({ ok: true, updatedAt })
+      }
+
+      return json({ error: 'Method not allowed.' }, { status: 405 })
     }
 
     if (url.pathname.startsWith('/api/')) {

@@ -8,6 +8,14 @@ import {
   subscribeAppAuth,
   type ApiUser,
 } from '../lib/appAuth'
+import { getSyncStatus, resetSyncStatus, subscribeSyncStatus, type SyncStatus } from '../lib/cloudSync'
+
+function syncLabel(s: SyncStatus): string | null {
+  if (s.kind === 'syncing') return s.detail || 'Syncing…'
+  if (s.kind === 'synced') return 'Cloud synced'
+  if (s.kind === 'error') return s.message
+  return null
+}
 
 /** Account sign-in for Worker/D1 (Google ID token). Separate from Sheets connect. */
 export function AppSignIn() {
@@ -15,9 +23,11 @@ export function AppSignIn() {
   const [user, setUser] = useState<ApiUser | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [sync, setSync] = useState(getSyncStatus)
   const configured = Boolean(appGoogleClientId())
 
   useEffect(() => subscribeAppAuth(() => setToken(appIdToken())), [])
+  useEffect(() => subscribeSyncStatus(() => setSync(getSyncStatus())), [])
 
   useEffect(() => {
     if (!token) {
@@ -44,6 +54,8 @@ export function AppSignIn() {
     return <p className="muted">App sign-in isn’t configured (missing VITE_GOOGLE_CLIENT_ID).</p>
   }
 
+  const syncText = syncLabel(sync)
+
   return (
     <div className="stack">
       <div className="row">
@@ -53,6 +65,7 @@ export function AppSignIn() {
             type="button"
             onClick={() => {
               signOutApp()
+              resetSyncStatus()
               setUser(null)
               setError('')
             }}
@@ -81,6 +94,9 @@ export function AppSignIn() {
           <span className="chip">Checking…</span>
         ) : null}
       </div>
+      {syncText ? (
+        <p className={sync.kind === 'error' ? 'muted' : 'faint'}>{syncText}</p>
+      ) : null}
       {error ? <p className="muted">{error}</p> : null}
     </div>
   )

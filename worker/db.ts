@@ -32,3 +32,36 @@ export async function getUser(db: D1Database, id: string): Promise<AuthedUser | 
     picture: row.picture,
   }
 }
+
+export type UserStateRow = {
+  stateJson: string
+  updatedAt: string
+}
+
+export async function getUserState(db: D1Database, userId: string): Promise<UserStateRow | null> {
+  const row = await db
+    .prepare(`SELECT state_json, updated_at FROM user_state WHERE user_id = ?`)
+    .bind(userId)
+    .first<{ state_json: string; updated_at: string }>()
+
+  if (!row) return null
+  return { stateJson: row.state_json, updatedAt: row.updated_at }
+}
+
+export async function putUserState(
+  db: D1Database,
+  userId: string,
+  stateJson: string,
+  updatedAt: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO user_state (user_id, state_json, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET
+         state_json = excluded.state_json,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(userId, stateJson, updatedAt)
+    .run()
+}
