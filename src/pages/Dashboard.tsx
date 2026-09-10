@@ -5,7 +5,7 @@ import { StreakCalendar } from '../components/StreakCalendar'
 import { CERB, cerbMood } from '../lib/cerb'
 import { minutesToday, neglectedCategories, sessionsOn, todayGoalProgressPct } from '../lib/insights'
 import { todayKey } from '../lib/ids'
-import { activeSessionPath, buildSession, startHref } from '../lib/sessionPlan'
+import { activeSessionPath, buildSession, isPhasePaused, startHref } from '../lib/sessionPlan'
 import {
   CATEGORIES,
   CATEGORY_BY_KIND,
@@ -32,12 +32,24 @@ function hrefFor(category: Category) {
 
 type HeroOption = { type: 'resume'; session: PracticeSession } | { type: 'next' }
 
+function useProgressClock(hasRunningSession: boolean) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (!hasRunningSession) return
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [hasRunningSession])
+  return now
+}
+
 export function Dashboard() {
   const { state, dispatch } = useStore()
   const live = useInProgressSessions()
   const navigate = useNavigate()
   const today = todayKey()
-  const mins = minutesToday(state)
+  const running = state.sessions.some((s) => s.inProgress && !isPhasePaused(s))
+  const now = useProgressClock(running)
+  const mins = minutesToday(state, today, now)
   const neglected = neglectedCategories(state)
   const weak = neglected[0] ?? 'communication'
   const kind = recommend(weak)

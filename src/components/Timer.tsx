@@ -72,12 +72,17 @@ export function Timer({
   const pastTarget = targetSec > 0 && elapsed >= targetSec
   const overSec = pastTarget ? elapsed - targetSec : 0
   const progress = targetSec > 0 ? Math.min(1, elapsed / targetSec) : 0
-  const metaLabel = pastTarget
-    ? `+${formatClock(overSec)} past target`
-    : `${formatClock(elapsed)} / ${formatClock(targetSec)}`
+  const metaLabel = !running
+    ? `Paused · ${formatClock(elapsed)} / ${formatClock(targetSec)}`
+    : pastTarget
+      ? `+${formatClock(overSec)} past goal`
+      : `${formatClock(elapsed)} / ${formatClock(targetSec)}`
 
   const clock = (
-    <div className={pastTarget ? 'timer warn' : 'timer'} aria-live="polite">
+    <div
+      className={`timer${pastTarget && running ? ' over' : ''}${running ? '' : ' is-paused'}`}
+      aria-live="polite"
+    >
       {formatClock(elapsed)}
     </div>
   )
@@ -85,7 +90,7 @@ export function Timer({
   const progressUi = (
     <div className="timer-progress-wrap">
       <div
-        className={pastTarget ? 'timer-progress past' : 'timer-progress'}
+        className={`timer-progress${pastTarget && running ? ' over' : ''}${running ? '' : ' is-paused'}`}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={targetSec}
@@ -94,13 +99,15 @@ export function Timer({
       >
         <div className="timer-progress-fill" style={{ width: `${progress * 100}%` }} />
       </div>
-      <p className={pastTarget ? 'timer-meta warn' : 'timer-meta'}>{metaLabel}</p>
+      <p className={`timer-meta${pastTarget && running ? ' over' : ''}${running ? '' : ' is-paused'}`}>
+        {metaLabel}
+      </p>
     </div>
   )
 
   if (variant === 'hero') {
     return (
-      <div className="timer-hero">
+      <div className={`timer-hero${running ? '' : ' is-paused'}`}>
         <button className="btn ghost timer-hero-bump" type="button" onClick={() => bump(-60)}>
           −1m
         </button>
@@ -114,7 +121,7 @@ export function Timer({
   }
 
   return (
-    <div className="timer-box">
+    <div className={`timer-box${running ? '' : ' is-paused'}`}>
       <button className="btn ghost" type="button" onClick={() => bump(-60)}>
         −1m
       </button>

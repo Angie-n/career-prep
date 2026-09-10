@@ -12,22 +12,22 @@ export function DsaStatsBar({
   const stats = computeDsaStats(entries)
 
   return (
-    <section className="card stat dsa-stats-bar" aria-label={label}>
+    <section className="dsa-stats-bar" aria-label={label}>
       <div className="dsa-stat-grid">
         <div className="dsa-stat-item">
-          <p className="kicker">easys</p>
+          <p className="kicker">Easys</p>
           <strong className="dsa-stat-value">{stats.easysSolved}</strong>
         </div>
         <div className="dsa-stat-item">
-          <p className="kicker">mediums</p>
+          <p className="kicker">Mediums</p>
           <strong className="dsa-stat-value">{stats.mediumsSolved}</strong>
         </div>
         <div className="dsa-stat-item">
-          <p className="kicker">hards</p>
+          <p className="kicker">Hards</p>
           <strong className="dsa-stat-value">{stats.hardSolved}</strong>
         </div>
         <div className="dsa-stat-item">
-          <p className="kicker">average time</p>
+          <p className="kicker">Average time</p>
           <strong className="dsa-stat-value">
             {stats.avgSecPerQuestion != null ? formatClock(stats.avgSecPerQuestion) : '—'}
           </strong>

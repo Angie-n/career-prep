@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { QuestionRecap } from './QuestionRecap'
 import { Recorder } from './Recorder'
 import { Timer } from './Timer'
 import { DsaStatsBar } from './DsaStatsBar'
+import { DsaSessionPanel } from './DsaSessionPanel'
 import { dsaDifficultyBucket } from '../lib/dsaStats'
-import { formatClock } from '../lib/ids'
+import { googleAccessToken, subscribeGoogle } from '../lib/googleAuth'
+import {
+  DSA_TRACKER_POLL_MS,
+  dsaRetrievedChanged,
+  mergeDsaRetrieved,
+  retrieveDsaFromTrackers,
+} from '../lib/retrieveDsa'
 import { homeForKind, isPhasePaused, phaseElapsedSec } from '../lib/sessionPlan'
 import {
   SESSION_META,
@@ -15,6 +22,12 @@ import {
 } from '../lib/types'
 import { useStore } from '../state/Store'
 
+function dsaTrackerQuery(session: PracticeSession): string {
+  const prompt = session.phases[0]?.prompt?.trim() ?? ''
+  if (!prompt || prompt === 'DSA block') return ''
+  return prompt
+}
+
 export function SessionStudio({ session }: { session: PracticeSession }) {
   const { state, dispatch } = useStore()
   const navigate = useNavigate()
@@ -22,6 +35,8 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const [timesUp, setTimesUp] = useState(false)
   const [reflecting, setReflecting] = useState(false)
   const [reflection, setReflection] = useState<Reflection>(emptyReflection())
+  const sessionRef = useRef(session)
+  sessionRef.current = session
 
   const isDsaSession = session.kind === 'dsa-block'
   const dsaEntries = isDsaSession ? session.dsaRetrieved ?? [] : []
@@ -34,6 +49,69 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const timerStartedAt =
     !paused && session.phaseStartedAt ? Date.parse(session.phaseStartedAt) : undefined
   const timerTarget = phase?.durationSec ?? 0
+
+  // Resuming an active session should start the clock immediately (leave-studio freezes it).
+  useEffect(() => {
+    if (!isPhasePaused(session)) return
+    const elapsed = session.phasePausedElapsedSec ?? 0
+    const started = new Date(Date.now() - elapsed * 1000).toISOString()
+    dispatch({
+      type: 'patch-session',
+      session: {
+        ...session,
+        phaseStartedAt: started,
+        phasePausedElapsedSec: undefined,
+      },
+    })
+    // Only when entering / switching into this studio — not on intentional in-studio Pause.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- session.id gate
+  }, [session.id, dispatch])
+
+  // Keep "From your tracker" in sync with Google Sheets while the block runs.
+  useEffect(() => {
+    if (!isDsaSession || !session.inProgress || reflecting) return
+
+    let cancelled = false
+    let inFlight = false
+
+    const refresh = async () => {
+      if (cancelled || inFlight) return
+      inFlight = true
+      try {
+        const current = sessionRef.current
+        const next = await retrieveDsaFromTrackers(state.sheets.dsa, dsaTrackerQuery(current))
+        if (cancelled) return
+        const prev = current.dsaRetrieved ?? []
+        const merged = mergeDsaRetrieved(prev, next)
+        if (!dsaRetrievedChanged(prev, merged)) return
+        dispatch({
+          type: 'patch-session',
+          session: { ...sessionRef.current, dsaRetrieved: merged },
+        })
+      } catch {
+        // Keep the last good snapshot if a poll fails.
+      } finally {
+        inFlight = false
+      }
+    }
+
+    void refresh()
+    const intervalId = window.setInterval(() => void refresh(), DSA_TRACKER_POLL_MS)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    const unsubGoogle = subscribeGoogle(() => {
+      if (googleAccessToken()) void refresh()
+    })
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisibility)
+      unsubGoogle()
+    }
+  }, [isDsaSession, session.id, session.inProgress, reflecting, state.sheets.dsa, dispatch])
 
   useEffect(() => {
     if (!phase) {
@@ -292,59 +370,79 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const blocking = phase.kind === 'block'
 
   const isDsaBlock = session.kind === 'dsa-block' && blocking
-  const dsaTrackers = state.sheets.dsa.filter((s) => s.url.trim())
-  const usedTracker = isDsaBlock
-    ? state.sheets.dsa.find((s) => s.id === phase.questionId && s.url.trim())
-    : undefined
 
   return (
-    <div className={`studio-frame${isDsaBlock ? ' dsa-session-frame' : ''}`}>
-      <header className="studio-top">
-        <div>
-          {isDsaBlock ? (
-            <>
-              <h1 className="studio-session-title">{SESSION_META[session.kind].title}</h1>
-              {timesUp ? (
-                <p className="muted" style={{ margin: '4px 0 0' }}>
-                  Time’s up — continue when you’re ready
+    <div
+      className={`studio-frame${isDsaBlock ? ' dsa-session-frame' : ''}${paused ? ' is-paused' : ''}`}
+    >
+      <div className={isDsaBlock ? 'dsa-session-chrome' : undefined}>
+        <header className="studio-top">
+          <div>
+            {isDsaBlock ? (
+              <>
+                <h1 className="studio-session-title">{SESSION_META[session.kind].title}</h1>
+                {timesUp ? (
+                  <p className="muted" style={{ margin: '4px 0 0' }}>
+                    Goal time reached — keep going if you want
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="kicker">
+                  {SESSION_META[session.kind].title} · {session.currentPhaseIndex + 1}/
+                  {session.phases.length}
                 </p>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <p className="kicker">
-                {SESSION_META[session.kind].title} · {session.currentPhaseIndex + 1}/
-                {session.phases.length}
-              </p>
-              {timesUp ? (
-                <strong>Time’s up — continue when you’re ready</strong>
-              ) : phaseLabel ? (
-                <strong>{phaseLabel}</strong>
-              ) : null}
-            </>
-          )}
-        </div>
-        <div className="studio-controls">
-          <button className="btn ghost" type="button" onClick={togglePause}>
-            {paused ? 'Resume' : 'Pause'}
-          </button>
-          <button className={timesUp ? 'btn' : 'btn ghost'} type="button" onClick={advance}>
-            Next
-          </button>
-        </div>
-      </header>
+                {timesUp ? (
+                  <strong>Goal time reached — keep going if you want</strong>
+                ) : phaseLabel ? (
+                  <strong>{phaseLabel}</strong>
+                ) : null}
+              </>
+            )}
+          </div>
+          <div className="studio-controls">
+            <button
+              className={paused ? 'btn' : 'btn ghost'}
+              type="button"
+              onClick={togglePause}
+            >
+              {paused ? 'Resume' : 'Pause'}
+            </button>
+            <button className={timesUp ? 'btn' : 'btn ghost'} type="button" onClick={advance}>
+              Next
+            </button>
+          </div>
+        </header>
+        {isDsaBlock ? (
+          <div className="dsa-sticky-timer">
+            <Timer
+              key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
+              elapsedSec={timerElapsed}
+              startedAt={timerStartedAt}
+              targetSec={timerTarget}
+              running={!paused}
+              onExpire={setTimesUp}
+              onAdjustTarget={adjustTarget}
+              variant="hero"
+            />
+          </div>
+        ) : null}
+      </div>
       <div className={`studio-body${isDsaBlock ? ' dsa-session-body' : ''}`}>
         <article className={`prompt${isDsaBlock ? ' dsa-session-prompt' : ''}`}>
-          <Timer
-            key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
-            elapsedSec={timerElapsed}
-            startedAt={timerStartedAt}
-            targetSec={timerTarget}
-            running={!paused}
-            onExpire={setTimesUp}
-            onAdjustTarget={adjustTarget}
-            variant="hero"
-          />
+          {!isDsaBlock ? (
+            <Timer
+              key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
+              elapsedSec={timerElapsed}
+              startedAt={timerStartedAt}
+              targetSec={timerTarget}
+              running={!paused}
+              onExpire={setTimesUp}
+              onAdjustTarget={adjustTarget}
+              variant="hero"
+            />
+          ) : null}
           {!blocking && (
             <p className="muted" style={{ marginBottom: 10, textAlign: 'center' }}>
               {thinking
@@ -358,107 +456,16 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
           )}
           {!isDsaBlock ? <h1 style={{ textAlign: 'center' }}>{phase.prompt}</h1> : null}
           {isDsaBlock ? (
-            <div className="dsa-session">
-              <div className="dsa-session-trackers">
-                <p className="kicker">Tracker logs</p>
-                {usedTracker ? (
-                  <div className="row" style={{ alignItems: 'baseline' }}>
-                    <span className="muted">Used tracker:</span>
-                    <Link
-                      className="btn ghost dsa-tracker-link"
-                      to={`/dsa/tracker?sourceId=${encodeURIComponent(usedTracker.id)}`}
-                    >
-                      {usedTracker.name}
-                    </Link>
-                  </div>
-                ) : dsaTrackers.length ? (
-                  <div className="row">
-                    {dsaTrackers.map((s) => (
-                      <Link
-                        key={s.id}
-                        className="btn ghost dsa-tracker-link"
-                        to={`/dsa/tracker?sourceId=${encodeURIComponent(s.id)}`}
-                      >
-                        {s.name}
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="muted">Add a DSA tracker link first on the tracker page.</p>
-                )}
-              </div>
-
-              <DsaStatsBar entries={dsaEntries} label="Live session stats" />
-
-              <div className="dsa-session-columns">
-                <div className="dsa-session-col dsa-session-log">
-                  <h2 className="dsa-col-heading">From your tracker</h2>
-                  <p className="muted dsa-log-hint">
-                    Read-only snapshot from Google Sheets. Edit the sheet in Google — use the tracker
-                    links above.
-                  </p>
-                  {dsaEntries.length ? (
-                    <div className="dsa-log-list">
-                      {dsaEntries.map((r, i) => {
-                        const bucket = dsaDifficultyBucket(r.difficulty)
-                        return (
-                          <section className="cue dsa-log-cue" key={r.id ?? `${r.problem}-${i}`}>
-                            <div className="row" style={{ justifyContent: 'space-between' }}>
-                              <b>Problem {i + 1}</b>
-                              {r.difficulty ? (
-                                <span
-                                  className={`dsa-diff-chip${bucket ? ` dsa-diff-${bucket}` : ''}`}
-                                >
-                                  {r.difficulty}
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="dsa-log-problem">{r.problem}</p>
-                            {r.topics ? (
-                              <p className="muted" style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>
-                                {r.topics}
-                              </p>
-                            ) : null}
-                            {r.notes ? (
-                              <p className="faint" style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>
-                                {r.notes}
-                              </p>
-                            ) : null}
-                            {typeof r.timeSec === 'number' ? (
-                              <p className="muted" style={{ marginTop: 8 }}>
-                                Time: {formatClock(r.timeSec)}
-                              </p>
-                            ) : null}
-                          </section>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="muted">
-                      No tracker rows retrieved for this block. Update your sheet in Google, then
-                      start a new session — or open a tracker link above.
-                    </p>
-                  )}
-                </div>
-
-                <div className="dsa-session-col dsa-session-notes-col">
-                  <label className="field dsa-notes-field">
-                    <span className="dsa-col-heading">Session notes</span>
-                    <textarea
-                      className="notes dsa-session-notes-area"
-                      placeholder="Local notes for this block — not written back to your sheet."
-                      value={answer?.draftNotes ?? ''}
-                      onChange={(e) =>
-                        updateAnswer(
-                          { questionId: phase.questionId, storyId: phase.storyId },
-                          { draftNotes: e.target.value },
-                        )
-                      }
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+            <DsaSessionPanel
+              entries={dsaEntries}
+              notes={answer?.draftNotes ?? ''}
+              onNotes={(value) =>
+                updateAnswer(
+                  { questionId: phase.questionId, storyId: phase.storyId },
+                  { draftNotes: value },
+                )
+              }
+            />
           ) : null}
           {drafting ? (
             <textarea

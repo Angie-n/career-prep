@@ -1,4 +1,5 @@
 import { todayKey } from './ids'
+import { sessionElapsedSec } from './sessionPlan'
 import type { AppState, Category, DailyGoals, PracticeSession } from './types'
 import { CATEGORIES, CATEGORY_BY_KIND, CATEGORY_LABEL } from './types'
 
@@ -10,11 +11,23 @@ export function sessionsOn(state: AppState, day: string): PracticeSession[] {
   return completedSessions(state).filter((s) => todayKey(new Date(s.completedAt!)) === day)
 }
 
-export function minutesToday(state: AppState, day = todayKey()): Record<Category, number> {
+export function minutesToday(
+  state: AppState,
+  day = todayKey(),
+  nowMs = Date.now(),
+): Record<Category, number> {
   const out = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>
   for (const s of sessionsOn(state, day)) {
     for (const c of CATEGORIES) {
       out[c] += s.categoryMinutes[c] ?? 0
+    }
+  }
+  // Live sessions count toward today only; discarding them drops this credit.
+  if (day === todayKey(new Date(nowMs))) {
+    for (const s of state.sessions) {
+      if (!s.inProgress) continue
+      const cat = CATEGORY_BY_KIND[s.kind]
+      out[cat] += sessionElapsedSec(s, nowMs) / 60
     }
   }
   return out

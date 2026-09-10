@@ -109,6 +109,9 @@ export type DsaRetrievedItem = {
   difficulty: string
   topics: string
   notes: string
+  /** Tracker this row was logged to / retrieved from. */
+  sheetId?: string
+  sheetName?: string
   /** Whether the user marked this problem as completed in the session. */
   solved?: boolean
   /** Time spent on this problem while solving the current session (seconds). */

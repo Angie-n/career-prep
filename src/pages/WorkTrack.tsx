@@ -61,7 +61,7 @@ export function WorkTrack({
     try {
       const dsaRetrieved =
         kind === 'dsa-block'
-          ? await retrieveDsaFromTrackers(state.sheets.dsa, note, { limit: 5 })
+          ? await retrieveDsaFromTrackers(state.sheets.dsa, note)
           : undefined
 
       const session = buildSession(kind, state.customQuestions, {

@@ -1,12 +1,28 @@
+import { useEffect, useState } from 'react'
 import { CATEGORY_BY_KIND, CATEGORY_LABEL, type Category } from '../lib/types'
 import { minutesToday, sessionsOn } from '../lib/insights'
 import { todayKey } from '../lib/ids'
+import { isPhasePaused } from '../lib/sessionPlan'
 import { useStore } from '../state/Store'
 import { StreakCalendar } from './StreakCalendar'
 
+function useProgressClock(hasRunningSession: boolean) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (!hasRunningSession) return
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [hasRunningSession])
+  return now
+}
+
 export function CategoryGlance({ category }: { category: Category }) {
   const { state } = useStore()
-  const have = minutesToday(state)[category]
+  const running = state.sessions.some(
+    (s) => s.inProgress && CATEGORY_BY_KIND[s.kind] === category && !isPhasePaused(s),
+  )
+  const now = useProgressClock(running)
+  const have = minutesToday(state, todayKey(), now)[category]
   const goal = state.goals[category]
   const met = have >= goal
   const pct = Math.min(100, (have / Math.max(1, goal)) * 100)

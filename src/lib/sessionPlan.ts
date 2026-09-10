@@ -110,6 +110,16 @@ export function isPhasePaused(session: PracticeSession): boolean {
   return typeof session.phasePausedElapsedSec === 'number'
 }
 
+/** Elapsed seconds for an in-progress session (prior phases + current phase clock). */
+export function sessionElapsedSec(session: PracticeSession, nowMs = Date.now()): number {
+  let sec = 0
+  for (let i = 0; i < session.currentPhaseIndex; i++) {
+    sec += session.phases[i]?.durationSec ?? 0
+  }
+  sec += phaseElapsedSec(session, nowMs)
+  return Math.max(0, sec)
+}
+
 export function previousDrafts(sessions: PracticeSession[]): SessionAnswer[] {
   const out: SessionAnswer[] = []
   for (const s of sessions) {
@@ -207,8 +217,7 @@ export function buildSession(
 export function minutesByCategory(session: PracticeSession, completedAt: string): Partial<Record<Category, number>> {
   const cat = CATEGORY_BY_KIND[session.kind]
   const elapsed = (Date.parse(completedAt) - Date.parse(session.startedAt)) / 60000
-  const planned = session.phases.reduce((n, p) => n + p.durationSec / 60, 0)
-  const mins = Math.max(1, Math.round(Math.min(elapsed, planned + 2)))
+  const mins = Math.max(1, Math.round(elapsed))
   return { [cat]: mins }
 }
 

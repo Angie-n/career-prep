@@ -1458,6 +1458,79 @@ a.card:focus-visible {
   background: transparent;
 }
 
+.main:has(.dsa-session-frame) {
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.main:has(.dsa-session-frame) .main-inner {
+  max-width: none;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dsa-session-frame {
+  grid-template-rows: auto 1fr;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.dsa-session-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin: 0 -4px;
+  padding: 8px 4px 12px;
+  /* Opaque (blocks scroll-through) but painted like the page wash + radials */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(180deg, var(--ember-wash) 0%, transparent 160px),
+    radial-gradient(720px 300px at 0% -8%, rgba(69, 90, 117, 0.045), transparent 60%),
+    radial-gradient(560px 240px at 100% 0%, rgba(140, 165, 190, 0.045), transparent 50%);
+  background-attachment: fixed;
+  border-bottom: 1px solid color-mix(in srgb, var(--ember) 16%, var(--line));
+}
+
+.dsa-session-chrome .studio-top {
+  margin-bottom: 0;
+  padding-bottom: 10px;
+  border-bottom: 0;
+}
+
+.dsa-sticky-timer {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 2px;
+}
+
+.dsa-sticky-timer .timer-hero {
+  margin: 0;
+  max-width: 480px;
+  width: 100%;
+  padding: 0;
+}
+
+.dsa-sticky-timer .timer {
+  font-size: clamp(2.4rem, 6vw, 3.5rem);
+  letter-spacing: 0.03em;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.dsa-sticky-timer .timer.over {
+  color: var(--gold);
+}
+
+.dsa-sticky-timer .timer-hero.is-paused .timer {
+  color: var(--muted);
+}
+
 .studio-top,
 .studio-bot {
   display: flex;
@@ -1515,16 +1588,17 @@ a.card:focus-visible {
 }
 
 .dsa-session-body {
-  display: block;
-  place-items: stretch;
-  padding: 12px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 4px 0;
   overflow: hidden;
   min-height: 0;
 }
 
 .dsa-session-prompt {
   max-width: none;
-  height: 100%;
+  width: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1533,78 +1607,106 @@ a.card:focus-visible {
 .dsa-session {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   flex: 1;
   min-height: 0;
+  margin-top: 4px;
+}
+
+.dsa-session-panel {
+  padding: 18px 20px;
+  border-color: color-mix(in srgb, var(--ember) 18%, var(--line));
+}
+
+.dsa-log-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
   margin-top: 14px;
 }
 
-.dsa-session-trackers {
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--ember-wash) 80%, var(--bg-2));
-  border: 1px solid color-mix(in srgb, var(--ember) 16%, var(--line));
+.dsa-log-form .field:first-child,
+.dsa-log-form .dsa-log-notes,
+.dsa-log-form .row {
+  grid-column: 1 / -1;
 }
 
-.dsa-tracker-link {
-  color: var(--gold);
-  border-color: color-mix(in srgb, var(--ember) 28%, var(--line));
-  background: color-mix(in srgb, var(--ember-soft) 40%, var(--bg-2));
+.dsa-add-tracker summary {
+  cursor: pointer;
+  list-style: none;
 }
 
-.dsa-tracker-link:hover {
-  background: var(--ember-dim);
-  border-color: color-mix(in srgb, var(--ember) 45%, var(--line));
-  color: var(--ink);
+.dsa-add-tracker summary::-webkit-details-marker {
+  display: none;
 }
 
 .dsa-stats-bar {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--ember-soft) 55%, var(--bg-2)) 0%,
-    color-mix(in srgb, var(--ember-wash) 90%, var(--bg-2)) 100%
-  );
-  border: 1px solid color-mix(in srgb, var(--ember) 22%, var(--line));
-  border-left: 3px solid var(--ember);
-  box-shadow: var(--shadow);
-  padding: 14px 18px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ember) 12%, var(--line));
+  box-shadow: none;
+  padding: 2px 0 18px;
+  margin: 0;
 }
 
 .dsa-stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 28px;
+  align-items: start;
+}
+
+.dsa-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 .dsa-stat-item .kicker {
-  margin-bottom: 4px;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .dsa-stat-value {
   font-family: var(--serif);
   font-size: 1.65rem;
-  line-height: 1;
+  line-height: 1.1;
   color: var(--gold);
+  font-weight: 560;
 }
 
 .dsa-session-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+  gap: 28px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .dsa-session-col {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+}
+
+.dsa-col-head {
+  flex-shrink: 0;
+}
+
+.dsa-col-scroll {
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 18px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--ember-wash) 65%, var(--bg-2));
-  border: 1px solid color-mix(in srgb, var(--ember) 14%, var(--line));
+  padding-right: 4px;
 }
 
 .dsa-col-heading {
@@ -1625,13 +1727,33 @@ a.card:focus-visible {
 
 .dsa-log-hint {
   font-size: 0.9rem;
-  margin: -4px 0 0;
+  margin: 8px 0 0;
+}
+
+.dsa-notes-field {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dsa-session-notes-area {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  resize: none;
+  overflow-y: auto;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--ember) 16%, var(--line));
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
 }
 
 .dsa-log-cue {
-  background: var(--bg-2);
+  background: transparent;
   border-color: color-mix(in srgb, var(--ember) 12%, var(--line));
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--ember) 6%, transparent);
+  box-shadow: none;
 }
 
 .dsa-log-problem {
@@ -1671,24 +1793,6 @@ a.card:focus-visible {
   color: color-mix(in srgb, var(--rose) 75%, var(--ink));
 }
 
-.dsa-notes-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  gap: 10px;
-}
-
-.dsa-session-notes-area {
-  flex: 1;
-  min-height: 280px;
-  resize: none;
-  background: var(--bg-2);
-  border: 1px solid color-mix(in srgb, var(--ember) 16%, var(--line));
-  border-radius: var(--radius-sm);
-  padding: 14px 16px;
-}
-
 .dsa-session-notes-area:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--ember) 45%, var(--line));
@@ -1701,8 +1805,25 @@ a.card:focus-visible {
   padding: 12px 24px 32px;
 }
 
+/* After `.studio-body` so DSA wins the cascade (flex + full bleed) */
+.dsa-session-frame .studio-body.dsa-session-body {
+  display: flex;
+  flex-direction: column;
+  place-items: stretch;
+  padding: 12px 4px 0;
+  overflow: hidden;
+  min-height: 0;
+  width: 100%;
+}
+
 .prompt {
   max-width: 760px;
+  width: 100%;
+}
+
+/* Must beat `.prompt` so DSA fills the main column */
+.dsa-session-frame .prompt.dsa-session-prompt {
+  max-width: none;
   width: 100%;
 }
 
@@ -1802,8 +1923,8 @@ a.card:focus-visible {
   transition: width 0.2s ease-out;
 }
 
-.timer-progress.past .timer-progress-fill {
-  background: var(--rose);
+.timer-progress.over .timer-progress-fill {
+  background: var(--gold);
   width: 100%;
 }
 
@@ -1815,8 +1936,8 @@ a.card:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.timer-meta.warn {
-  color: var(--rose);
+.timer-meta.over {
+  color: var(--gold);
 }
 
 .dsa-session-prompt > .timer-hero {
@@ -1833,8 +1954,31 @@ a.card:focus-visible {
   color: var(--gold);
 }
 
-.dsa-session-prompt > .timer-hero .timer.warn {
-  color: var(--rose);
+.dsa-session-prompt > .timer-hero .timer.over {
+  color: var(--gold);
+}
+
+.timer.is-paused,
+.timer-hero.is-paused .timer,
+.timer-box.is-paused .timer {
+  color: var(--muted);
+}
+
+.timer-progress.is-paused .timer-progress-fill {
+  background: color-mix(in srgb, var(--muted) 55%, var(--bg-3));
+}
+
+.timer-meta.is-paused {
+  color: var(--faint);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+/* Resume is solid ember; Pause stays ghost (muted when running) */
+.studio-frame:not(.is-paused) .studio-controls .btn.ghost {
+  color: var(--muted);
 }
 
 .file-btn {
@@ -1847,8 +1991,8 @@ a.card:focus-visible {
   display: none;
 }
 
-.timer.warn {
-  color: var(--rose);
+.timer.over {
+  color: var(--gold);
 }
 
 .notes {
@@ -2162,21 +2306,32 @@ details.fold[open] summary {
   }
 
   .dsa-session-body {
-    padding: 12px 16px 16px;
-    overflow: auto;
+    padding: 12px 0 0;
+    overflow: hidden;
   }
 
   .dsa-stat-grid,
-  .dsa-session-columns {
+  .dsa-session-columns,
+  .dsa-log-form {
     grid-template-columns: 1fr;
   }
 
+  .dsa-session-columns {
+    overflow: auto;
+    min-height: 0;
+  }
+
   .dsa-session-col {
-    max-height: none;
+    max-height: min(48vh, 420px);
+    overflow: hidden;
   }
 
   .dsa-session-notes-area {
-    min-height: 200px;
+    min-height: 180px;
+  }
+
+  .dsa-session-chrome {
+    margin-inline: 0;
   }
 }
 

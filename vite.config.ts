@@ -7,6 +7,9 @@ export default defineConfig(({ mode }) => ({
   base: mode === 'production' ? '/career-prep/' : '/',
   plugins: [react()],
   server: {
+    // Must match Google OAuth Authorized JavaScript origin.
+    port: 5188,
+    strictPort: true,
     proxy: {
       '/sheet-csv': {
         target: 'https://docs.google.com',
