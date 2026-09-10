@@ -24,7 +24,9 @@ Experiences split into situation, what you noticed, constraints, options, decisi
 
 ## Data
 
-Everything stays in this browser (`localStorage` + `IndexedDB` for audio). There is no account.
+App state still lives in this browser (`localStorage` + `IndexedDB` for audio) until sync lands. **Account** (Goals → Sign in with Google) identifies you to the Cloudflare Worker / D1 backend. Sheets connect remains a separate Google access-token flow.
+
+Infra notes: [docs/infra-design-exploration.md](docs/infra-design-exploration.md).
 
 ## Run
 
@@ -33,4 +35,16 @@ npm install
 npm run dev
 ```
 
-Dev server URL used for Google Sheets OAuth: **http://localhost:5188**. In Google Cloud Console → Credentials → your OAuth client ID (Web), add that exact string as an Authorized JavaScript origin (not `5173`).
+API locally (optional, second terminal):
+
+```bash
+npm run dev:api
+```
+
+Vite proxies `/api` → `http://127.0.0.1:8787`.
+
+Dev OAuth origin: **`http://localhost:<DEV_SERVER_PORT>`** (see committed [`.env`](.env); default `5188`). Set the same origin in Google Cloud Console → Credentials → Web client → Authorized JavaScript origins. After deploy, add your `*.workers.dev` origin too.
+
+## Deploy
+
+Pushes to `main` run [.github/workflows/deploy-workers.yml](.github/workflows/deploy-workers.yml). Repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `VITE_GOOGLE_CLIENT_ID`.

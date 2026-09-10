@@ -5,9 +5,7 @@ alwaysApply: true
 
 # Google OAuth origin
 
-For the spreadsheet / Google Sheets API OAuth client, the **Authorized JavaScript origin** in Google Cloud Console is exactly:
+Dev origin is `http://localhost:<DEV_SERVER_PORT>` where **`DEV_SERVER_PORT`** comes from the committed [`.env`](.env) (default `5188`). Vite reads the same value in [`vite.config.ts`](vite.config.ts).
 
-`http://localhost:5188`
-
-- Do **not** use Vite’s default `http://localhost:5173`.
-- Do not change OAuth logic to “fix” a mismatched origin; keep docs, UI copy, and Console config aligned to `5188`.
+- Do **not** use Vite’s default `5173` unless you also change `DEV_SERVER_PORT` and the Google Cloud Console origin.
+- Do not change OAuth logic to “fix” a mismatched origin; keep `.env`, Console Authorized JavaScript origins, and docs aligned.

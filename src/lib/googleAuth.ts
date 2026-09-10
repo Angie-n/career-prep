@@ -14,6 +14,11 @@ type Gis = {
       }) => TokenClient
       revoke: (token: string, done?: () => void) => void
     }
+    id?: {
+      initialize: (cfg: unknown) => void
+      prompt: (momentListener?: (n: unknown) => void) => void
+      disableAutoSelect: () => void
+    }
   }
 }
 

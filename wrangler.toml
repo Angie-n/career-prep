@@ -1,0 +1,19 @@
+name = "career-prep"
+main = "worker/index.ts"
+compatibility_date = "2026-09-01"
+# Account ID comes from CLOUDFLARE_ACCOUNT_ID (local env or GitHub Actions secret).
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "career-prep"
+database_id = "422a5377-dd29-4dc0-8992-6ae1bdc43673"
+migrations_dir = "migrations"
+
+# Public OAuth Web client ID (same as VITE_GOOGLE_CLIENT_ID). Override in CI with --var.
+[vars]
+GOOGLE_CLIENT_ID = ""

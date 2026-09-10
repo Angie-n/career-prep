@@ -1,0 +1,40 @@
+---
+description: How to commit and push to GitHub for this repo (working setup)
+alwaysApply: true
+---
+
+# GitHub push (career-prep)
+
+## Git binary
+
+PATH prefers `/usr/local/bin/git` (**2.28**), which rejects Cursor’s injected `git commit --trailer`.
+
+Always use Apple Git for commit/push in this repo:
+
+```bash
+/usr/bin/git commit ...
+/usr/bin/git push ...
+```
+
+(`/usr/bin/git` is **2.50+** and accepts `--trailer`.)
+
+## Remote
+
+`origin` is SSH (HTTPS fails here with `could not read Username for 'https://github.com'`):
+
+`git@github.com:Angie-n/career-prep.git`
+
+`gh` is not installed — do not rely on it.
+
+## Push flow
+
+1. Stage source only (skip `tmp-*` screenshots).
+2. Commit with `/usr/bin/git` (message via `-m` or `-F`).
+3. Push: `/usr/bin/git push -u origin HEAD` (or `origin main` when already on `main`).
+4. If you pushed to an explicit `git@github.com:...` URL, refresh the tracking ref:
+
+```bash
+/usr/bin/git fetch origin
+```
+
+5. Confirm with `/usr/bin/git status -sb` — should show `main...origin/main` with no ahead/behind.
