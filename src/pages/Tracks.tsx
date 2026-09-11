@@ -1,7 +1,7 @@
 import { WorkTrack } from './WorkTrack'
 
-export function Applications({ pane }: { pane?: 'home' | 'tracker' }) {
-  return <WorkTrack category="applications" kind="apps-block" pane={pane} />
+export function Applications() {
+  return <WorkTrack category="applications" kind="apps-block" />
 }
 
 export function Dsa({ pane }: { pane?: 'home' | 'tracker' }) {

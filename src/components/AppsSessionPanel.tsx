@@ -85,11 +85,33 @@ export function AppsSessionPanel({
   const [viewStepById, setViewStepById] = useState<Record<string, Exclude<ApplicationComposeStep, 'done'>>>(
     {},
   )
+  const [browseActiveId, setBrowseActiveId] = useState<string | null>(null)
 
   const byId = useMemo(() => new Map(bank.map((a) => [a.id, a])), [bank])
   const openApps = openIds.map((id) => byId.get(id)).filter((a): a is Application => !!a)
-  const active = (activeId && byId.get(activeId)) || openApps[0] || null
+  const resolvedActiveId =
+    browseActiveId && openIds.includes(browseActiveId)
+      ? browseActiveId
+      : activeId && openIds.includes(activeId)
+        ? activeId
+        : openApps[0]?.id ?? null
+  const active = (resolvedActiveId && byId.get(resolvedActiveId)) || openApps[0] || null
   const loadable = bank.filter((a) => !openIds.includes(a.id) && a.composeStep === 'done')
+
+  useEffect(() => {
+    setBrowseActiveId(null)
+  }, [activeId])
+
+  useEffect(() => {
+    if (browseActiveId && !openIds.includes(browseActiveId)) {
+      setBrowseActiveId(null)
+    }
+  }, [browseActiveId, openIds])
+
+  function selectApp(id: string) {
+    setBrowseActiveId(id)
+    onSessionApps?.({ openIds, activeId: id })
+  }
 
   function viewStepFor(app: Application): Exclude<ApplicationComposeStep, 'done'> {
     const saved = viewStepById[app.id]
@@ -102,6 +124,7 @@ export function AppsSessionPanel({
     if (readOnly || !onUpsert || !onSessionApps) return
     const draft = newApplicationDraft({ composeStep: 'identity', status: 'not-submitted' })
     onUpsert(draft)
+    setBrowseActiveId(draft.id)
     onSessionApps({ openIds: [...openIds, draft.id], activeId: draft.id })
     setViewStepById((prev) => ({ ...prev, [draft.id]: 'identity' }))
   }
@@ -113,6 +136,7 @@ export function AppsSessionPanel({
     if (app.composeStep !== 'done') {
       onUpsert(touchApplication(app, { composeStep: 'done' }))
     }
+    setBrowseActiveId(id)
     onSessionApps({
       openIds: openIds.includes(id) ? openIds : [...openIds, id],
       activeId: id,
@@ -193,7 +217,7 @@ export function AppsSessionPanel({
           openApps={openApps}
           activeId={active?.id ?? null}
           readOnly={readOnly}
-          onSelect={(id) => onSessionApps?.({ openIds, activeId: id })}
+          onSelect={selectApp}
           onRemove={removeFromSession}
         />
 
@@ -481,6 +505,30 @@ function AppTabStrip({
         </button>
       ) : null}
     </div>
+  )
+}
+
+export function ApplicationCompose({
+  app,
+  step,
+  readOnly,
+  onPatch,
+  onStep,
+}: {
+  app: Application
+  step: Exclude<ApplicationComposeStep, 'done'>
+  readOnly?: boolean
+  onPatch: (partial: Partial<Application>) => void
+  onStep: (step: Exclude<ApplicationComposeStep, 'done'>) => void
+}) {
+  return (
+    <ComposeFlow
+      app={app}
+      step={step}
+      readOnly={readOnly ?? false}
+      onPatch={onPatch}
+      onStep={onStep}
+    />
   )
 }
 

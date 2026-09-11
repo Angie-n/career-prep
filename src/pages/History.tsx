@@ -1,6 +1,7 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AppsSessionPanel } from '../components/AppsSessionPanel'
 import { DsaStatsBar } from '../components/DsaStatsBar'
+import { ItemOverflowMenu } from '../components/ItemOverflowMenu'
 import { QuestionRecap } from '../components/QuestionRecap'
 import { dsaDifficultyBucket } from '../lib/dsaStats'
 import { formatClock, formatWhen } from '../lib/ids'
@@ -32,9 +33,20 @@ export function History() {
 
   return (
     <div className="stack">
-      <Link className="muted" to={history}>
-        ← Back
-      </Link>
+      <div className="apps-bank-detail-head-row">
+        <Link className="apps-bank-back" to={history}>
+          ← Back
+        </Link>
+        <ItemOverflowMenu
+          label="Session options"
+          deleteLabel="Delete session"
+          onDelete={() => {
+            if (!window.confirm('Delete this session? Recordings for it go too.')) return
+            removeSession(selected)
+            navigate(history)
+          }}
+        />
+      </div>
       <p className="kicker">{SESSION_META[selected.kind].title}</p>
       <h1>{selected.completedAt ? formatWhen(selected.completedAt) : 'In progress'}</h1>
       <div className="row">
@@ -144,19 +156,6 @@ export function History() {
           <QuestionRecap key={a.questionId + (a.storyId ?? '')} answer={a} index={i} readOnly />
         ))
       )}
-      <div>
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={() => {
-            if (!window.confirm('Delete this session? Recordings for it go too.')) return
-            removeSession(selected)
-            navigate(history)
-          }}
-        >
-          Delete session
-        </button>
-      </div>
     </div>
   )
 }

@@ -35,7 +35,7 @@ export function WorkTrack({
   const [note, setNote] = useState('')
   const [starting, setStarting] = useState(false)
   const meta = SESSION_META[kind]
-  const tracking = pane === 'tracker'
+  const tracking = category === 'dsa' && pane === 'tracker'
 
   useEffect(() => {
     setMinutesLocal(goalMinutes)
@@ -88,18 +88,14 @@ export function WorkTrack({
         <p className="kicker">{CATEGORY_LABEL[category]}</p>
         <h1>{tracking ? 'Tracker' : meta.title}</h1>
         <p className="lead">
-          {tracking
-            ? category === 'applications'
-              ? 'Your sheet is the log. Keep it honest.'
-              : 'Named trackers for problems and notes. Stay sharp.'
-            : meta.blurb}
+          {tracking ? 'Named trackers for problems and notes. Stay sharp.' : meta.blurb}
         </p>
       </div>
 
       <CategorySubnav category={category} />
 
       {tracking ? (
-        <WorkTrackSheets category={category} />
+        <WorkTrackSheets />
       ) : (
         <>
           <CategoryGlance category={category} />
@@ -158,16 +154,14 @@ export function WorkTrack({
   )
 }
 
-function WorkTrackSheets({ category }: { category: Extract<Category, 'applications' | 'dsa'> }) {
+function WorkTrackSheets() {
   const { state, dispatch } = useStore()
   const [searchParams] = useSearchParams()
   const focusSourceId = searchParams.get('sourceId') ?? ''
 
-  const [sheetUrl, setSheetUrl] = useState(state.sheets.applications.url)
   const [dsaDrafts, setDsaDrafts] = useState<NamedSheet[]>(state.sheets.dsa)
 
   useEffect(() => {
-    if (category !== 'dsa') return
     if (!focusSourceId.trim()) return
     const scroll = () => {
       const el = document.getElementById(`dsa-tracker-${focusSourceId}`)
@@ -175,22 +169,8 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
     scroll()
-    // Sheet sections render from state; do a second attempt after paint.
     window.setTimeout(scroll, 0)
-  }, [category, focusSourceId])
-
-  function saveAppsSheet() {
-    dispatch({
-      type: 'set-sheets',
-      sheets: {
-        ...state.sheets,
-        applications: {
-          url: sheetUrl.trim(),
-          importedAt: state.sheets.applications.importedAt,
-        },
-      },
-    })
-  }
+  }, [focusSourceId])
 
   function saveDsa() {
     const next = dsaDrafts.map((s) => ({
@@ -205,35 +185,15 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
     })
   }
 
-  if (category === 'applications') {
-    return (
-      <section className="card stack">
-        <p className="kicker">Spreadsheet</p>
-        <h2>Application log</h2>
-        <p className="muted">Paste the sheet URL for a live read. Private sheets prompt Google sign-in when needed.</p>
-        <label className="field">
-          Sheet URL
-          <input
-            type="text"
-            value={sheetUrl}
-            onChange={(e) => setSheetUrl(e.target.value)}
-            placeholder="https://docs.google.com/spreadsheets/d/…"
-          />
-        </label>
-        <button className="btn ghost" type="button" onClick={saveAppsSheet}>
-          Save link
-        </button>
-        <SheetLog url={state.sheets.applications.url} kind="applications" />
-      </section>
-    )
-  }
-
   return (
     <div className="stack">
       <div>
         <p className="kicker">Spreadsheets</p>
         <h2>Data Structures and Algorithms trackers</h2>
-        <p className="lead">Name each tracker and paste its sheet URL. Same columns: Date, Problem, Difficulty, Topics, Notes.</p>
+        <p className="lead">
+          Name each tracker and paste its sheet URL. Same columns: Date, Problem, Difficulty, Topics,
+          Notes.
+        </p>
       </div>
       {dsaDrafts.map((sheet, i) => (
         <section className="card stack" key={sheet.id} id={`dsa-tracker-${sheet.id}`}>
@@ -244,7 +204,9 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
               type="text"
               value={sheet.name}
               onChange={(e) =>
-                setDsaDrafts((list) => list.map((s) => (s.id === sheet.id ? { ...s, name: e.target.value } : s)))
+                setDsaDrafts((list) =>
+                  list.map((s) => (s.id === sheet.id ? { ...s, name: e.target.value } : s)),
+                )
               }
               placeholder="NeetCode, Blind 75…"
             />
@@ -255,7 +217,9 @@ function WorkTrackSheets({ category }: { category: Extract<Category, 'applicatio
               type="text"
               value={sheet.url}
               onChange={(e) =>
-                setDsaDrafts((list) => list.map((s) => (s.id === sheet.id ? { ...s, url: e.target.value } : s)))
+                setDsaDrafts((list) =>
+                  list.map((s) => (s.id === sheet.id ? { ...s, url: e.target.value } : s)),
+                )
               }
               placeholder="https://docs.google.com/spreadsheets/d/…"
             />

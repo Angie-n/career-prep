@@ -57,8 +57,9 @@ function AppRoutes() {
         <Route path="/practice/bank" element={<Navigate to="/practice/prompts" replace />} />
         <Route path="/applications" element={<Applications />} />
         <Route path="/applications/saved" element={<ApplicationsBank />} />
+        <Route path="/applications/saved/:id" element={<ApplicationsBank />} />
         <Route path="/applications/history" element={<CategoryHistory category="applications" />} />
-        <Route path="/applications/tracker" element={<Applications pane="tracker" />} />
+        <Route path="/applications/tracker" element={<Navigate to="/applications" replace />} />
         <Route path="/dsa" element={<Dsa />} />
         <Route path="/dsa/history" element={<CategoryHistory category="dsa" />} />
         <Route path="/dsa/tracker" element={<Dsa pane="tracker" />} />

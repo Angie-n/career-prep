@@ -3971,25 +3971,109 @@ a.card:focus-visible {
 .apps-bank-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .apps-bank-card {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 10px 10px 18px;
+  border: 1px solid color-mix(in srgb, var(--ember) 16%, var(--line));
+  border-radius: 14px;
+  background: var(--bg);
+  color: inherit;
+}
+
+.apps-bank-card:hover {
+  border-color: color-mix(in srgb, var(--ember) 36%, var(--line));
+  background: color-mix(in srgb, var(--ember) 4%, var(--bg));
+}
+
+.apps-bank-card-open {
+  appearance: none;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 8px 6px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .apps-bank-card h2 {
   margin: 0 0 4px;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
+  font-weight: 600;
 }
 
 .apps-bank-card-main {
   min-width: 0;
   flex: 1;
+}
+
+.apps-bank-card-main .muted,
+.apps-bank-card-main .faint {
+  margin: 0;
+}
+
+.apps-bank-card-main .faint {
+  margin-top: 6px;
+}
+
+.apps-bank-card .apps-application-menu {
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.apps-bank-back {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  color: color-mix(in srgb, var(--ember) 55%, var(--ink));
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.apps-bank-back:hover {
+  color: var(--ink);
+}
+
+.apps-bank-detail-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.apps-bank-detail-head h1 {
+  margin: 0 0 4px;
+}
+
+.apps-bank-detail-meta {
+  margin: 0;
+}
+
+.apps-bank-detail-panel {
+  padding: 16px 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--ember) 18%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--ember) 6%, var(--bg));
 }
 
 .apps-paste {
