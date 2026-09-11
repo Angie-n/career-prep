@@ -18,6 +18,7 @@ import { clearEnteredWorkspace } from '../lib/workspaceEntry'
 import { BEHAVIORAL_CATEGORY_ID, CATEGORY_BY_KIND, emptyStory, liveSlotKey, sameLiveSlot } from '../lib/types'
 import type {
   AppState,
+  Application,
   Category,
   MaxStreaks,
   PracticeSession,
@@ -27,11 +28,14 @@ import type {
   SessionKind,
   Story,
 } from '../lib/types'
+import { newApplicationDraft } from '../lib/applications'
 
 type Action =
   | { type: 'replace-state'; state: AppState }
   | { type: 'upsert-story'; story: Story }
   | { type: 'delete-story'; id: string }
+  | { type: 'upsert-application'; application: Application }
+  | { type: 'delete-application'; id: string }
   | { type: 'upsert-prompt-category'; category: PromptCategory }
   | { type: 'delete-prompt-category'; id: string }
   | { type: 'upsert-question'; question: Question }
@@ -111,6 +115,29 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'delete-story':
       return { ...state, stories: state.stories.filter((s) => s.id !== action.id) }
+    case 'upsert-application': {
+      const exists = state.applications.some((a) => a.id === action.application.id)
+      return {
+        ...state,
+        applications: exists
+          ? state.applications.map((a) =>
+              a.id === action.application.id ? action.application : a,
+            )
+          : [action.application, ...state.applications],
+      }
+    }
+    case 'delete-application':
+      return {
+        ...state,
+        applications: state.applications.filter((a) => a.id !== action.id),
+        sessions: state.sessions.map((s) => {
+          if (!s.appsApplicationIds?.includes(action.id)) return s
+          const appsApplicationIds = s.appsApplicationIds.filter((id) => id !== action.id)
+          const appsActiveId =
+            s.appsActiveId === action.id ? appsApplicationIds[0] ?? null : s.appsActiveId
+          return { ...s, appsApplicationIds, appsActiveId }
+        }),
+      }
     case 'upsert-prompt-category': {
       const exists = state.promptCategories.some((c) => c.id === action.category.id)
       return {
@@ -381,6 +408,8 @@ export function newStoryDraft(): Story {
   const now = new Date().toISOString()
   return { ...emptyStory(), id: uid(), createdAt: now, updatedAt: now }
 }
+
+export { newApplicationDraft }
 
 export function newPromptCategoryDraft(): PromptCategory {
   const now = new Date().toISOString()

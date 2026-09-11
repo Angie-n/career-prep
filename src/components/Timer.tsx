@@ -21,7 +21,7 @@ export function Timer({
   onExpire?: (expired: boolean) => void
   /** Called when user bumps ±1m so the parent can adjust the planned target. */
   onAdjustTarget?: (deltaSec: number) => void
-  variant?: 'compact' | 'hero'
+  variant?: 'compact' | 'hero' | 'elapsed'
 }) {
   const readElapsed = () => {
     if (startedAt != null && running) {
@@ -116,6 +116,14 @@ export function Timer({
           +1m
         </button>
         {progressUi}
+      </div>
+    )
+  }
+
+  if (variant === 'elapsed') {
+    return (
+      <div className={`timer-elapsed${running ? '' : ' is-paused'}`} aria-live="polite">
+        {formatClock(elapsed)}
       </div>
     )
   }

@@ -9,7 +9,7 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 }
 
 export const CATEGORY_BLURB: Record<Category, string> = {
-  applications: 'Hunt and apply. Pure clock time — no drills mixed in.',
+  applications: 'Track roles and companies. Mark up postings, status, and prep notes.',
   communication: 'Say it out loud. Draft, deliver, or go cold.',
   dsa: 'Reps under the clock. Problems stay on your tracker.',
 }
@@ -118,8 +118,158 @@ export type DsaRetrievedItem = {
   timeSec?: number
 }
 
+/** Comment anchored to a span of a pasted job description (character offsets). */
+export type JdAnnotation = {
+  id: string
+  start: number
+  end: number
+  /** Snapshot of the selected text — used to re-anchor if the JD is edited. */
+  quote: string
+  body: string
+  createdAt: string
+}
+
+/** Job posting workspace for an Applications block. */
+export type AppsJobDoc = {
+  text: string
+  annotations: JdAnnotation[]
+}
+
+export function emptyAppsJobDoc(): AppsJobDoc {
+  return { text: '', annotations: [] }
+}
+
+export const APPLICATION_STATUSES = [
+  'not-submitted',
+  'submitted',
+  'interviewing',
+  'received-offer',
+  'rejected',
+  'ghosted',
+  'not-pursuing',
+] as const
+
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number]
+
+export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
+  'not-submitted': 'Not Submitted',
+  submitted: 'Submitted',
+  interviewing: 'Interviewing',
+  'received-offer': 'Received Offer',
+  rejected: 'Rejected',
+  ghosted: 'Ghosted',
+  'not-pursuing': 'Not Pursuing',
+}
+
+export type ApplicationNote = {
+  id: string
+  title: string
+  body: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type ApplicationLink = {
+  id: string
+  label: string
+  url: string
+}
+
+export type ApplicationStatusEvent = {
+  id: string
+  status: ApplicationStatus
+  /** When this status was set. */
+  at: string
+}
+
+/** Saved job application — bank record, editable from Applications sessions. */
+export type Application = {
+  id: string
+  role: string
+  company: string
+  /** Normalized company key for future querying (lowercase, collapsed space). */
+  companyKey: string
+  jobDoc: AppsJobDoc
+  status: ApplicationStatus
+  /** Chronological log of status changes (oldest → newest). */
+  statusLog: ApplicationStatusEvent[]
+  notes: ApplicationNote[]
+  links: ApplicationLink[]
+  /** Fit: overlap between experience and what they need. */
+  fitOverlap: string
+  /** Fit: meaningful gaps. */
+  fitGaps: string
+  /** Fit: why this is a good career moment and what trajectory it could give. */
+  fitTrajectory: string
+  /**
+   * Guided create flow position. `done` means the application is persisted in the bank
+   * (auto once role + company are set); view navigation uses local step state after that.
+   */
+  composeStep: ApplicationComposeStep
+  /** When the application left Not Submitted; null if still unsubmitted. */
+  submittedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const APPLICATION_COMPOSE_STEPS = [
+  'identity',
+  'jd',
+  'fit',
+  'links',
+  'notes',
+  'status',
+  'done',
+] as const
+
+export type ApplicationComposeStep = (typeof APPLICATION_COMPOSE_STEPS)[number]
+
+export function emptyApplicationNote(): Omit<ApplicationNote, 'id' | 'createdAt' | 'updatedAt'> {
+  return { title: '', body: '' }
+}
+
+export function emptyApplicationLink(): Omit<ApplicationLink, 'id'> {
+  return { label: '', url: '' }
+}
+
+export function emptyApplication(): Omit<Application, 'id' | 'createdAt' | 'updatedAt'> {
+  return {
+    role: '',
+    company: '',
+    companyKey: '',
+    jobDoc: emptyAppsJobDoc(),
+    status: 'not-submitted',
+    statusLog: [],
+    notes: [],
+    links: [],
+    fitOverlap: '',
+    fitGaps: '',
+    fitTrajectory: '',
+    composeStep: 'identity',
+    submittedAt: null,
+  }
+}
+
+export function normalizeCompanyKey(company: string): string {
+  return company.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+export function applicationLabel(app: Pick<Application, 'role' | 'company'>): string {
+  const role = app.role.trim()
+  const company = app.company.trim()
+  if (role && company) return `${role} · ${company}`
+  if (role) return role
+  if (company) return company
+  return 'Untitled application'
+}
+
 export type Reflection = {
+  /** Freeform takeaways (DSA / communication, and legacy apps). */
   note: string
+  /** Apps reflection: what got done this session. */
+  gotDone?: string
+  /** Apps reflection: what should be done next. */
+  doNext?: string
 }
 
 export type PracticeSession = {
@@ -130,6 +280,15 @@ export type PracticeSession = {
   phases: PlannedPhase[]
   answers: SessionAnswer[]
   dsaRetrieved?: DsaRetrievedItem[]
+  /**
+   * Applications opened in this apps-block (ids into AppState.applications).
+   * Prefer this over legacy `appsJobDoc`.
+   */
+  appsApplicationIds?: string[]
+  /** Which open application is focused in the studio. */
+  appsActiveId?: string | null
+  /** @deprecated Legacy single JD workspace — migrated into the applications bank when possible. */
+  appsJobDoc?: AppsJobDoc
   reflection?: Reflection
   categoryMinutes: Partial<Record<Category, number>>
   inProgress: boolean
@@ -170,6 +329,8 @@ export type NamedSheet = {
 
 export type AppState = {
   stories: Story[]
+  /** Saved job applications (role, company, JD markup, status, notes, links). */
+  applications: Application[]
   /** Prompt banks under Communication (Behavioral starter + user-created). */
   promptCategories: PromptCategory[]
   customQuestions: Question[]
@@ -244,7 +405,7 @@ export const SESSION_META: Record<
   'apps-block': {
     title: 'Apply Yourself',
     minutes: 25,
-    blurb: 'Look, apply, follow up.',
+    blurb: 'Work one or more applications — mark up postings, track status, and prep notes.',
   },
   'dsa-block': {
     title: 'Problem Solve',
@@ -278,13 +439,33 @@ export function emptyStory(): Omit<Story, 'id' | 'createdAt' | 'updatedAt'> {
 }
 
 export function emptyReflection(): Reflection {
-  return { note: '' }
+  return { note: '', gotDone: '', doNext: '' }
+}
+
+/** Single string for history / glance lines. */
+export function reflectionSummary(r: Reflection | undefined): string {
+  if (!r) return ''
+  const gotDone = r.gotDone?.trim() ?? ''
+  const doNext = r.doNext?.trim() ?? ''
+  if (gotDone || doNext) {
+    return [gotDone && `Done: ${gotDone}`, doNext && `Next: ${doNext}`].filter(Boolean).join(' · ')
+  }
+  return r.note.trim()
 }
 
 export function normalizeReflection(raw: unknown): Reflection | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const r = raw as Record<string, unknown>
-  if (typeof r.note === 'string') return { note: r.note }
+  const note = typeof r.note === 'string' ? r.note : ''
+  const gotDone = typeof r.gotDone === 'string' ? r.gotDone : undefined
+  const doNext = typeof r.doNext === 'string' ? r.doNext : undefined
+  if (note || gotDone?.trim() || doNext?.trim()) {
+    return {
+      note,
+      ...(gotDone !== undefined ? { gotDone } : {}),
+      ...(doNext !== undefined ? { doNext } : {}),
+    }
+  }
   const parts = ['stuck', 'ramble', 'explainedWell', 'knowledgeGap', 'practiceAgain']
     .map((k) => r[k])
     .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
