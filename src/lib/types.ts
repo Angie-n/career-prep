@@ -9,7 +9,7 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 }
 
 export const CATEGORY_BLURB: Record<Category, string> = {
-  applications: 'Hunt and apply. Pure clock time — no drills mixed in.',
+  applications: 'Paste a posting, mark it up, then apply with intent.',
   communication: 'Say it out loud. Draft, deliver, or go cold.',
   dsa: 'Reps under the clock. Problems stay on your tracker.',
 }
@@ -118,6 +118,27 @@ export type DsaRetrievedItem = {
   timeSec?: number
 }
 
+/** Comment anchored to a span of a pasted job description (character offsets). */
+export type JdAnnotation = {
+  id: string
+  start: number
+  end: number
+  /** Snapshot of the selected text — used to re-anchor if the JD is edited. */
+  quote: string
+  body: string
+  createdAt: string
+}
+
+/** Job posting workspace for an Applications block. */
+export type AppsJobDoc = {
+  text: string
+  annotations: JdAnnotation[]
+}
+
+export function emptyAppsJobDoc(): AppsJobDoc {
+  return { text: '', annotations: [] }
+}
+
 export type Reflection = {
   note: string
 }
@@ -130,6 +151,8 @@ export type PracticeSession = {
   phases: PlannedPhase[]
   answers: SessionAnswer[]
   dsaRetrieved?: DsaRetrievedItem[]
+  /** Pasted job description + side comments for apps-block sessions. */
+  appsJobDoc?: AppsJobDoc
   reflection?: Reflection
   categoryMinutes: Partial<Record<Category, number>>
   inProgress: boolean
@@ -244,7 +267,7 @@ export const SESSION_META: Record<
   'apps-block': {
     title: 'Apply Yourself',
     minutes: 25,
-    blurb: 'Look, apply, follow up.',
+    blurb: 'Paste a job description, highlight what matters, comment as you go.',
   },
   'dsa-block': {
     title: 'Problem Solve',

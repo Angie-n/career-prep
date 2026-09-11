@@ -123,6 +123,11 @@ export function WorkTrack({
                 />
               </label>
             ) : null}
+            {!matchingActive && category === 'applications' ? (
+              <p className="muted start-card-hint">
+                After you start, paste the job description and highlight lines to leave comments.
+              </p>
+            ) : null}
             <div className="start-card-actions">
               {!matchingActive ? <MinutesPicker value={minutes} onChange={setMinutes} /> : null}
               {matchingActive ? (

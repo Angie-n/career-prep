@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AppsSessionPanel } from './AppsSessionPanel'
 import { QuestionRecap } from './QuestionRecap'
 import { Recorder } from './Recorder'
 import { Timer } from './Timer'
@@ -16,6 +17,7 @@ import {
 import { homeForKind, isPhasePaused, phaseElapsedSec } from '../lib/sessionPlan'
 import {
   SESSION_META,
+  emptyAppsJobDoc,
   emptyReflection,
   type PracticeSession,
   type Reflection,
@@ -318,6 +320,50 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
       )
     }
 
+    if (session.kind === 'apps-block') {
+      const jobDoc = session.appsJobDoc ?? emptyAppsJobDoc()
+      return (
+        <div className="studio-frame recap-page apps-session-frame">
+          <header className="studio-top">
+            <div>
+              <h1 className="studio-session-title">{SESSION_META[session.kind].title}</h1>
+              <p className="muted" style={{ margin: '4px 0 0' }}>
+                Marked-up posting + takeaways
+              </p>
+            </div>
+            <div className="studio-controls">
+              <button className="btn ghost" type="button" onClick={backFromReflect}>
+                Back
+              </button>
+              <button className="btn" type="button" onClick={() => finish(false)}>
+                Conclude Session
+              </button>
+            </div>
+          </header>
+          <div className="studio-body apps-recap-body">
+            <div className="prompt reflect stack apps-recap-prompt">
+              <p className="muted">
+                Your annotated job description stays with this session (not written to Sheets).
+              </p>
+              <AppsSessionPanel
+                jobDoc={jobDoc}
+                onChange={(appsJobDoc) => patch({ appsJobDoc })}
+              />
+              <label className="field">
+                Key Takeaways
+                <textarea
+                  className="notes"
+                  placeholder="Fit, gaps, outreach angle, what to customize next…"
+                  value={reflection.note}
+                  onChange={(e) => setReflection({ note: e.target.value })}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="studio-frame recap-page">
         <header className="studio-top">
@@ -371,17 +417,25 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const blocking = phase.kind === 'block'
 
   const isDsaBlock = session.kind === 'dsa-block' && blocking
+  const isAppsBlock = session.kind === 'apps-block' && blocking
+  const wideBlock = isDsaBlock || isAppsBlock
+  const jobDoc = session.appsJobDoc ?? emptyAppsJobDoc()
 
   return (
     <div
-      className={`studio-frame${isDsaBlock ? ' dsa-session-frame' : ''}${paused ? ' is-paused' : ''}`}
+      className={`studio-frame${isDsaBlock ? ' dsa-session-frame' : ''}${isAppsBlock ? ' apps-session-frame' : ''}${paused ? ' is-paused' : ''}`}
     >
-      <div className={isDsaBlock ? 'dsa-session-chrome' : undefined}>
+      <div className={wideBlock ? (isDsaBlock ? 'dsa-session-chrome' : 'apps-session-chrome') : undefined}>
         <header className="studio-top">
           <div>
-            {isDsaBlock ? (
+            {wideBlock ? (
               <>
                 <h1 className="studio-session-title">{SESSION_META[session.kind].title}</h1>
+                {isAppsBlock && phase.prompt && phase.prompt !== SESSION_META['apps-block'].title ? (
+                  <p className="muted" style={{ margin: '4px 0 0' }}>
+                    {phase.prompt}
+                  </p>
+                ) : null}
                 {timesUp ? (
                   <p className="muted" style={{ margin: '4px 0 0' }}>
                     Goal time reached — keep going if you want
@@ -415,8 +469,8 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
             </button>
           </div>
         </header>
-        {isDsaBlock ? (
-          <div className="dsa-sticky-timer">
+        {wideBlock ? (
+          <div className={isDsaBlock ? 'dsa-sticky-timer' : 'apps-sticky-timer'}>
             <Timer
               key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
               elapsedSec={timerElapsed}
@@ -430,9 +484,9 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
           </div>
         ) : null}
       </div>
-      <div className={`studio-body${isDsaBlock ? ' dsa-session-body' : ''}`}>
-        <article className={`prompt${isDsaBlock ? ' dsa-session-prompt' : ''}`}>
-          {!isDsaBlock ? (
+      <div className={`studio-body${wideBlock ? (isDsaBlock ? ' dsa-session-body' : ' apps-session-body') : ''}`}>
+        <article className={`prompt${wideBlock ? (isDsaBlock ? ' dsa-session-prompt' : ' apps-session-prompt') : ''}`}>
+          {!wideBlock ? (
             <Timer
               key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
               elapsedSec={timerElapsed}
@@ -455,7 +509,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                     : 'The draft is hidden. Speak.'}
             </p>
           )}
-          {!isDsaBlock ? <h1 style={{ textAlign: 'center' }}>{phase.prompt}</h1> : null}
+          {!wideBlock ? <h1 style={{ textAlign: 'center' }}>{phase.prompt}</h1> : null}
           {isDsaBlock ? (
             <DsaSessionPanel
               entries={dsaEntries}
@@ -466,6 +520,12 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                   { draftNotes: value },
                 )
               }
+            />
+          ) : null}
+          {isAppsBlock ? (
+            <AppsSessionPanel
+              jobDoc={jobDoc}
+              onChange={(appsJobDoc) => patch({ appsJobDoc })}
             />
           ) : null}
           {drafting ? (

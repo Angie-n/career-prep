@@ -4,12 +4,13 @@ import type {
   Category,
   PlannedPhase,
   PracticeSession,
+  AppsJobDoc,
   DsaRetrievedItem,
   Question,
   SessionAnswer,
   SessionKind,
 } from './types'
-import { CATEGORY_BY_KIND, COMM_KINDS, SESSION_META } from './types'
+import { CATEGORY_BY_KIND, COMM_KINDS, SESSION_META, emptyAppsJobDoc } from './types'
 
 export function allQuestions(
   custom: Question[],
@@ -67,6 +68,7 @@ function finish(
   phases: PlannedPhase[],
   extraAnswers: SessionAnswer[] = [],
   dsaRetrieved?: DsaRetrievedItem[],
+  appsJobDoc?: AppsJobDoc,
 ): PracticeSession {
   const answers: SessionAnswer[] = [...extraAnswers]
   const seen = new Set(answers.map((a) => a.questionId + (a.storyId ?? '')))
@@ -90,6 +92,7 @@ function finish(
     phases,
     answers,
     dsaRetrieved,
+    appsJobDoc,
     categoryMinutes: {},
     inProgress: true,
     currentPhaseIndex: 0,
@@ -211,7 +214,13 @@ export function buildSession(
     })
   }
 
-  return finish(kind, phases, [], opts?.dsaRetrieved)
+  return finish(
+    kind,
+    phases,
+    [],
+    opts?.dsaRetrieved,
+    kind === 'apps-block' ? emptyAppsJobDoc() : undefined,
+  )
 }
 
 export function minutesByCategory(session: PracticeSession, completedAt: string): Partial<Record<Category, number>> {

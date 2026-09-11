@@ -1,11 +1,18 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { AppsSessionPanel } from '../components/AppsSessionPanel'
 import { DsaStatsBar } from '../components/DsaStatsBar'
 import { QuestionRecap } from '../components/QuestionRecap'
 import { dsaDifficultyBucket } from '../lib/dsaStats'
 import { formatClock, formatWhen } from '../lib/ids'
 import { historyForKind } from '../lib/sessionPlan'
 import { deleteSessionMedia } from '../lib/storage'
-import { CATEGORIES, CATEGORY_LABEL, SESSION_META, type PracticeSession } from '../lib/types'
+import {
+  CATEGORIES,
+  CATEGORY_LABEL,
+  SESSION_META,
+  emptyAppsJobDoc,
+  type PracticeSession,
+} from '../lib/types'
 import { useStore } from '../state/Store'
 
 export function History() {
@@ -101,6 +108,11 @@ export function History() {
             )}
           </section>
         </>
+      ) : selected.kind === 'apps-block' ? (
+        <section className="card apps-history-card">
+          <p className="kicker">Job description</p>
+          <AppsSessionPanel jobDoc={selected.appsJobDoc ?? emptyAppsJobDoc()} readOnly />
+        </section>
       ) : (
         selected.answers.map((a, i) => (
           <QuestionRecap key={a.questionId + (a.storyId ?? '')} answer={a} index={i} readOnly />
