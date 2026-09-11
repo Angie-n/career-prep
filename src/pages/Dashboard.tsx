@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StreakCalendar } from '../components/StreakCalendar'
 import { CERB, cerbMood, type CerbMood } from '../lib/cerb'
-import { dsaProblemsSolvedAllTime, appsBlocksCompletedAllTime, formatTotalMinutes, minutesAllTime, minutesToday, neglectedCategories, promptsAnsweredAllTime, sessionsOn, todayGoalProgressPct } from '../lib/insights'
+import { dsaProblemsSolvedAllTime, applicationsSubmittedAllTime, formatTotalMinutes, minutesAllTime, minutesToday, neglectedCategories, promptsAnsweredAllTime, sessionsOn, todayGoalProgressPct } from '../lib/insights'
 import { todayKey } from '../lib/ids'
 import { activeSessionPath, buildSession, isPhasePaused, startHref } from '../lib/sessionPlan'
 import { deleteSessionMedia } from '../lib/storage'
@@ -38,14 +38,16 @@ function resumeRally(mood: CerbMood): string {
 
 type HeroOption = { type: 'resume'; session: PracticeSession } | { type: 'next' }
 
-function useProgressClock(hasRunningSession: boolean, sessionKey: string) {
+function useProgressClock(hasLiveSession: boolean, hasRunningSession: boolean, sessionKey: string) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
+    // Always refresh on mount / when live sessions appear (e.g. after hydrate),
+    // even if every clock is paused.
     setNow(Date.now())
     if (!hasRunningSession) return
     const id = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(id)
-  }, [hasRunningSession, sessionKey])
+  }, [hasLiveSession, hasRunningSession, sessionKey])
   return now
 }
 
@@ -113,14 +115,14 @@ export function Dashboard() {
   const live = useInProgressSessions()
   const navigate = useNavigate()
   const today = todayKey()
-  const liveKey = live.map((s) => s.id).join('|')
+  const liveKey = live.map((s) => `${s.id}:${s.phasePausedElapsedSec ?? s.phaseStartedAt ?? ''}`).join('|')
   const running = state.sessions.some((s) => s.inProgress && !isPhasePaused(s))
-  const now = useProgressClock(running, liveKey)
+  const now = useProgressClock(live.length > 0, running, liveKey)
   const mins = minutesToday(state, today, now)
   const dsaSolved = dsaProblemsSolvedAllTime(state)
   const promptsAnswered = promptsAnsweredAllTime(state)
-  const appsBlocks = appsBlocksCompletedAllTime(state)
-  const lifetimeMins = minutesAllTime(state)
+  const appsSubmitted = applicationsSubmittedAllTime(state)
+  const lifetimeMins = minutesAllTime(state, now)
   const neglected = neglectedCategories(state)
   const weak = neglected[0] ?? 'communication'
   const kind = recommend(weak)
@@ -366,12 +368,12 @@ export function Dashboard() {
               {CATEGORIES.map((c) => {
                 const count =
                   c === 'applications'
-                    ? appsBlocks
+                    ? appsSubmitted
                     : c === 'dsa'
                       ? dsaSolved
                       : promptsAnswered
                 const countLabel =
-                  c === 'applications' ? 'Blocks done' : c === 'dsa' ? 'Problems solved' : 'Prompts answered'
+                  c === 'applications' ? 'Applications submitted' : c === 'dsa' ? 'Problems solved' : 'Prompts answered'
                 const time = formatTotalMinutes(lifetimeMins[c])
                 const icon = c === 'applications' ? 'apps' : c === 'dsa' ? 'dsa' : 'prompts'
                 return (

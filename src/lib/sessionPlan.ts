@@ -90,6 +90,8 @@ function finish(
     phases,
     answers,
     dsaRetrieved,
+    appsApplicationIds: kind === 'apps-block' ? [] : undefined,
+    appsActiveId: kind === 'apps-block' ? null : undefined,
     categoryMinutes: {},
     inProgress: true,
     currentPhaseIndex: 0,

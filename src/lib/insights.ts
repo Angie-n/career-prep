@@ -7,6 +7,7 @@ import {
   CATEGORY_LABEL,
   COMM_KINDS,
   reflectionHasContent,
+  reflectionSummary,
 } from './types'
 
 export function completedSessions(state: AppState): PracticeSession[] {
@@ -17,26 +18,60 @@ export function sessionsOn(state: AppState, day: string): PracticeSession[] {
   return completedSessions(state).filter((s) => todayKey(new Date(s.completedAt!)) === day)
 }
 
+/** Local midnight → next midnight for a YYYY-MM-DD key. */
+function localDayBoundsMs(day: string): { start: number; end: number } | null {
+  const parts = day.split('-').map(Number)
+  const y = parts[0]
+  const m = parts[1]
+  const d = parts[2]
+  if (!y || !m || !d) return null
+  const start = new Date(y, m - 1, d).getTime()
+  const end = new Date(y, m - 1, d + 1).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null
+  return { start, end }
+}
+
+function overlapMinutes(rangeStart: number, rangeEnd: number, day: string): number {
+  const bounds = localDayBoundsMs(day)
+  if (!bounds) return 0
+  const a = Math.max(rangeStart, bounds.start)
+  const b = Math.min(rangeEnd, bounds.end)
+  return Math.max(0, (b - a) / 60000)
+}
+
+/** Effective [start, end] for crediting session time onto calendar days. */
+function sessionCreditRangeMs(
+  session: PracticeSession,
+  nowMs = Date.now(),
+): { start: number; end: number } | null {
+  const start = Date.parse(session.startedAt)
+  if (!Number.isFinite(start)) return null
+  if (session.inProgress) {
+    // Use elapsed clock (respects pause) rather than wall time to now.
+    return { start, end: start + sessionElapsedSec(session, nowMs) * 1000 }
+  }
+  if (!session.completedAt) return null
+  const end = Date.parse(session.completedAt)
+  if (!Number.isFinite(end)) return null
+  return { start, end: Math.max(start, end) }
+}
+
+/**
+ * Minutes per category credited to a calendar day.
+ * Splits session time across the local days it actually covered (including
+ * in-progress sessions), so yesterday’s streak cell fills when you worked then.
+ */
 export function minutesToday(
   state: AppState,
   day = todayKey(),
   nowMs = Date.now(),
 ): Record<Category, number> {
   const out = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>
-  for (const s of sessionsOn(state, day)) {
-    for (const c of CATEGORIES) {
-      out[c] += s.categoryMinutes[c] ?? 0
-    }
-  }
-  // Live sessions count toward today only when they started today;
-  // discarding them drops this credit.
-  if (day === todayKey(new Date(nowMs))) {
-    for (const s of state.sessions) {
-      if (!s.inProgress) continue
-      if (todayKey(new Date(s.startedAt)) !== day) continue
-      const cat = CATEGORY_BY_KIND[s.kind]
-      out[cat] += sessionElapsedSec(s, nowMs) / 60
-    }
+  for (const s of state.sessions) {
+    const range = sessionCreditRangeMs(s, nowMs)
+    if (!range) continue
+    const cat = CATEGORY_BY_KIND[s.kind]
+    out[cat] += overlapMinutes(range.start, range.end, day)
   }
   return out
 }
@@ -65,11 +100,19 @@ export function minutesLastDays(state: AppState, days: number): Record<Category,
   return out
 }
 
-/** All credited minutes per category across completed sessions. */
-export function minutesAllTime(state: AppState): Record<Category, number> {
+/** All credited minutes per category, including live in-progress session time. */
+export function minutesAllTime(
+  state: AppState,
+  nowMs = Date.now(),
+): Record<Category, number> {
   const out = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>
   for (const s of completedSessions(state)) {
     for (const c of CATEGORIES) out[c] += s.categoryMinutes[c] ?? 0
+  }
+  for (const s of state.sessions) {
+    if (!s.inProgress) continue
+    const cat = CATEGORY_BY_KIND[s.kind]
+    out[cat] += sessionElapsedSec(s, nowMs) / 60
   }
   return out
 }
@@ -151,7 +194,7 @@ export function neglectedCategories(state: AppState): Category[] {
 
 export function recentReflections(state: AppState, limit = 4) {
   return completedSessions(state)
-    .filter((s) => reflectionHasContent(s.reflection))
+    .filter((s) => reflectionSummary(s.reflection) || reflectionHasContent(s.reflection))
     .slice()
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
     .slice(0, limit)
@@ -161,7 +204,9 @@ export function improvingNote(state: AppState): string {
   const done = completedSessions(state)
   if (done.length < 2) return 'A few sessions will be enough to see what keeps coming up.'
   const last = done.slice(-4)
-  const notes = last.filter((s) => reflectionHasContent(s.reflection))
+  const notes = last
+    .map((s) => reflectionSummary(s.reflection))
+    .filter(Boolean)
   if (notes.length) return 'Your notes are the practice list — not a score.'
   const minutes = minutesLastDays(state, 7)
   const total = CATEGORIES.reduce((n, c) => n + minutes[c], 0)
@@ -259,7 +304,7 @@ export function dsaProblemsSolvedAllTime(state: AppState): number {
   return n
 }
 
-/** Completed application blocks in session history (not sheet row totals). */
-export function appsBlocksCompletedAllTime(state: AppState): number {
-  return completedSessions(state).filter((s) => s.kind === 'apps-block').length
+/** Applications that were actually submitted (have a submit date). */
+export function applicationsSubmittedAllTime(state: AppState): number {
+  return state.applications.filter((a) => !!a.submittedAt).length
 }

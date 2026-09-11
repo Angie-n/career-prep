@@ -1,5 +1,7 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { AppsSessionPanel } from '../components/AppsSessionPanel'
 import { DsaStatsBar } from '../components/DsaStatsBar'
+import { ItemOverflowMenu } from '../components/ItemOverflowMenu'
 import { QuestionRecap } from '../components/QuestionRecap'
 import { dsaDifficultyBucket } from '../lib/dsaStats'
 import { formatClock, formatWhen } from '../lib/ids'
@@ -26,9 +28,20 @@ export function History() {
 
   return (
     <div className="stack">
-      <Link className="muted" to={history}>
-        ← Back
-      </Link>
+      <div className="apps-bank-detail-head-row">
+        <Link className="apps-bank-back" to={history}>
+          ← Back
+        </Link>
+        <ItemOverflowMenu
+          label="Session options"
+          deleteLabel="Delete session"
+          onDelete={() => {
+            if (!window.confirm('Delete this session? Recordings for it go too.')) return
+            removeSession(selected)
+            navigate(history)
+          }}
+        />
+      </div>
       <p className="kicker">{SESSION_META[selected.kind].title}</p>
       <h1>{selected.completedAt ? formatWhen(selected.completedAt) : 'In progress'}</h1>
       <div className="row">
@@ -47,7 +60,30 @@ export function History() {
           {selected.kind === 'dsa-block' ? (
             <>
               <p className="kicker">Key Takeaways</p>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.additionalNotes}</p>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {selected.reflection.additionalNotes || selected.reflection.note || '—'}
+              </p>
+            </>
+          ) : selected.kind === 'apps-block' ? (
+            <>
+              {selected.reflection.gotDone?.trim() ? (
+                <div>
+                  <p className="kicker">What did you get done?</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.gotDone}</p>
+                </div>
+              ) : null}
+              {selected.reflection.doNext?.trim() ? (
+                <div>
+                  <p className="kicker">What should be done next?</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.doNext}</p>
+                </div>
+              ) : null}
+              {selected.reflection.note?.trim() ? (
+                <div>
+                  <p className="kicker">Note</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.note}</p>
+                </div>
+              ) : null}
             </>
           ) : (
             <>
@@ -63,10 +99,12 @@ export function History() {
                   <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.couldImprove}</p>
                 </>
               ) : null}
-              {selected.reflection.additionalNotes.trim() ? (
+              {(selected.reflection.additionalNotes.trim() || selected.reflection.note?.trim()) ? (
                 <>
                   <p className="kicker">Additional notes</p>
-                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.additionalNotes}</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>
+                    {selected.reflection.additionalNotes || selected.reflection.note}
+                  </p>
                 </>
               ) : null}
             </>
@@ -126,24 +164,21 @@ export function History() {
             )}
           </section>
         </>
+      ) : selected.kind === 'apps-block' ? (
+        <section className="card apps-history-card">
+          <p className="kicker">Applications</p>
+          <AppsSessionPanel
+            openIds={selected.appsApplicationIds ?? []}
+            activeId={selected.appsActiveId ?? selected.appsApplicationIds?.[0] ?? null}
+            bank={state.applications}
+            readOnly
+          />
+        </section>
       ) : (
         selected.answers.map((a, i) => (
           <QuestionRecap key={a.questionId + (a.storyId ?? '')} answer={a} index={i} readOnly />
         ))
       )}
-      <div>
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={() => {
-            if (!window.confirm('Delete this session? Recordings for it go too.')) return
-            removeSession(selected)
-            navigate(history)
-          }}
-        >
-          Delete session
-        </button>
-      </div>
     </div>
   )
 }

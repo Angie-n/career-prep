@@ -12,8 +12,8 @@ function itemsFor(category: Category): Item[] {
   if (category === 'applications') {
     return [
       { to: '/applications', label: 'Home', end: true },
+      { to: '/applications/saved', label: 'Applications', matchPrefix: '/applications/saved' },
       { to: '/applications/history', label: 'History' },
-      { to: '/applications/tracker', label: 'Tracker' },
     ]
   }
   if (category === 'dsa') {

@@ -13,6 +13,7 @@ import { History } from './pages/History'
 import { Practice } from './pages/Practice'
 import { StoryEditor } from './pages/StoryEditor'
 import { Applications, Dsa } from './pages/Tracks'
+import { ApplicationsBank } from './pages/ApplicationsBank'
 import { isAppSignedIn, subscribeAppAuth } from './lib/appAuth'
 import { hasEnteredWorkspace } from './lib/workspaceEntry'
 import { StoreProvider } from './state/Store'
@@ -55,8 +56,10 @@ function AppRoutes() {
         <Route path="/practice/notes" element={<Navigate to="/practice/stories" replace />} />
         <Route path="/practice/bank" element={<Navigate to="/practice/prompts" replace />} />
         <Route path="/applications" element={<Applications />} />
+        <Route path="/applications/saved" element={<ApplicationsBank />} />
+        <Route path="/applications/saved/:id" element={<ApplicationsBank />} />
         <Route path="/applications/history" element={<CategoryHistory category="applications" />} />
-        <Route path="/applications/tracker" element={<Applications pane="tracker" />} />
+        <Route path="/applications/tracker" element={<Navigate to="/applications" replace />} />
         <Route path="/dsa" element={<Dsa />} />
         <Route path="/dsa/history" element={<CategoryHistory category="dsa" />} />
         <Route path="/dsa/tracker" element={<Dsa pane="tracker" />} />

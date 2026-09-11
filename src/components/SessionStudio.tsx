@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AppsSessionPanel } from './AppsSessionPanel'
 import { QuestionRecap } from './QuestionRecap'
 import { Recorder } from './Recorder'
 import { Timer } from './Timer'
@@ -234,11 +235,17 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
 
   function finish(skip = false) {
     const shouldSaveReflection = !(skip || !reflectionHasContent(reflection))
+    const saved: Reflection | undefined = shouldSaveReflection
+      ? {
+        ...emptyReflection(),
+        ...reflection,
+      }
+      : undefined
     void deleteSessionMedia(session).catch(() => {})
     dispatch({
       type: 'complete-session',
       id: session.id,
-      reflection: shouldSaveReflection ? reflection : undefined,
+      reflection: saved,
     })
     navigate(homeForKind(session.kind))
   }
@@ -342,6 +349,52 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
       )
     }
 
+    if (session.kind === 'apps-block') {
+      return (
+        <div className="studio-frame recap-page apps-session-frame">
+          <header className="studio-top">
+            <div>
+              <h1 className="studio-session-title">{SESSION_META[session.kind].title}</h1>
+              <p className="muted" style={{ margin: '4px 0 0' }}>
+                Reflect on this block
+              </p>
+            </div>
+            <div className="studio-controls">
+              <button className="btn ghost" type="button" onClick={backFromReflect}>
+                Back
+              </button>
+              <button className="btn" type="button" onClick={() => finish(false)}>
+                End Reflection
+              </button>
+            </div>
+          </header>
+          <div className="studio-body">
+            <div className="prompt reflect stack">
+              <label className="field">
+                What did you get done?
+                <textarea
+                  className="notes"
+                  placeholder="Roles opened, postings marked up, notes written, applications submitted…"
+                  value={reflection.gotDone ?? ''}
+                  onChange={(e) => setReflection({ ...reflection, gotDone: e.target.value })}
+                  autoFocus
+                />
+              </label>
+              <label className="field">
+                What should be done next?
+                <textarea
+                  className="notes"
+                  placeholder="Follow-ups, gaps to close, outreach, next applications…"
+                  value={reflection.doNext ?? ''}
+                  onChange={(e) => setReflection({ ...reflection, doNext: e.target.value })}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="studio-frame recap-page">
         <header className="studio-top">
@@ -417,18 +470,25 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const blocking = phase.kind === 'block'
 
   const isDsaBlock = session.kind === 'dsa-block' && blocking
+  const isAppsBlock = session.kind === 'apps-block' && blocking
+  const wideBlock = isDsaBlock || isAppsBlock
 
   return (
     <div
-      className={`studio-frame${isDsaBlock ? ' dsa-session-frame' : ''}${paused ? ' is-paused' : ''}`}
+      className={`studio-frame${isDsaBlock ? ' dsa-session-frame' : ''}${isAppsBlock ? ' apps-session-frame' : ''}${paused ? ' is-paused' : ''}`}
     >
-      <div className={isDsaBlock ? 'dsa-session-chrome' : undefined}>
+      <div className={wideBlock ? (isDsaBlock ? 'dsa-session-chrome' : 'apps-session-chrome') : undefined}>
         <header className="studio-top">
           <div>
-            {isDsaBlock ? (
+            {wideBlock ? (
               <>
                 <h1 className="studio-session-title">{SESSION_META[session.kind].title}</h1>
-                {timesUp ? (
+                {isAppsBlock && phase.prompt && phase.prompt !== SESSION_META['apps-block'].title ? (
+                  <p className="muted" style={{ margin: '4px 0 0' }}>
+                    {phase.prompt}
+                  </p>
+                ) : null}
+                {!isAppsBlock && timesUp ? (
                   <p className="muted" style={{ margin: '4px 0 0' }}>
                     Goal time reached — keep going if you want
                   </p>
@@ -448,16 +508,48 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
             )}
           </div>
           <div className="studio-controls">
-            <button
-              className={paused ? 'btn' : 'btn ghost'}
-              type="button"
-              onClick={togglePause}
-              disabled={workLocked}
-            >
-              {paused ? 'Resume' : 'Pause'}
-            </button>
+            {isAppsBlock ? (
+              <div className="apps-session-clock">
+                <Timer
+                  key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
+                  elapsedSec={timerElapsed}
+                  startedAt={timerStartedAt}
+                  targetSec={timerTarget}
+                  running={!paused}
+                  onExpire={setTimesUp}
+                  variant="elapsed"
+                />
+                <button
+                  className="apps-session-clock-toggle"
+                  type="button"
+                  onClick={togglePause}
+                  aria-label={paused ? 'Resume timer' : 'Pause timer'}
+                  title={paused ? 'Resume' : 'Pause'}
+                >
+                  {paused ? (
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                      <path d="M5 3.2v9.6L13 8 5 3.2z" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                      <rect x="3.5" y="3" width="3" height="10" rx="0.75" fill="currentColor" />
+                      <rect x="9.5" y="3" width="3" height="10" rx="0.75" fill="currentColor" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <button
+                className={paused ? 'btn' : 'btn ghost'}
+                type="button"
+                onClick={togglePause}
+                disabled={workLocked}
+              >
+                {paused ? 'Resume' : 'Pause'}
+              </button>
+            )}
             <button className={timesUp ? 'btn' : 'btn ghost'} type="button" onClick={advance}>
-              Next
+              {isAppsBlock ? 'End Session' : 'Next'}
             </button>
           </div>
         </header>
@@ -476,9 +568,9 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
           </div>
         ) : null}
       </div>
-      <div className={`studio-body${isDsaBlock ? ' dsa-session-body' : ''}`}>
-        <article className={`prompt${isDsaBlock ? ' dsa-session-prompt' : ''}`}>
-          {!isDsaBlock ? (
+      <div className={`studio-body${wideBlock ? (isDsaBlock ? ' dsa-session-body' : ' apps-session-body') : ''}`}>
+        <article className={`prompt${wideBlock ? (isDsaBlock ? ' dsa-session-prompt' : ' apps-session-prompt') : ''}`}>
+          {!wideBlock ? (
             <Timer
               key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
               elapsedSec={timerElapsed}
@@ -503,7 +595,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                       : 'The draft is hidden. You can practice without recording.'}
             </p>
           )}
-          {!isDsaBlock ? <h1 style={{ textAlign: 'center' }}>{phase.prompt}</h1> : null}
+          {!wideBlock ? <h1 style={{ textAlign: 'center' }}>{phase.prompt}</h1> : null}
           {isDsaBlock ? (
             <DsaSessionPanel
               entries={dsaEntries}
@@ -514,6 +606,20 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                   { draftNotes: value },
                 )
               }
+            />
+          ) : null}
+          {isAppsBlock ? (
+            <AppsSessionPanel
+              openIds={session.appsApplicationIds ?? []}
+              activeId={session.appsActiveId ?? null}
+              bank={state.applications}
+              onSessionApps={({ openIds: appsApplicationIds, activeId: appsActiveId }) =>
+                patch({ appsApplicationIds, appsActiveId })
+              }
+              onUpsert={(application) =>
+                dispatch({ type: 'upsert-application', application })
+              }
+              onDelete={(id) => dispatch({ type: 'delete-application', id })}
             />
           ) : null}
           {drafting ? (

@@ -18,7 +18,10 @@ import {
   type Story,
 } from './types'
 import { withUpdatedMaxStreaks } from './insights'
+import { normalizeAppsJobDoc } from './jdAnnotations'
+import { applicationFromLegacyJobDoc, migrateApplications } from './applications'
 import { SEED_BEHAVIORAL_CATEGORY } from './seedQuestions'
+import { minutesByCategory } from './sessionPlan'
 
 const KEY = 'studio:v1'
 const DB_NAME = 'studio-audio'
@@ -180,6 +183,7 @@ function emptyState(): AppState {
   const promptCategories = [{ ...SEED_BEHAVIORAL_CATEGORY }]
   return {
     stories: [],
+    applications: [],
     promptCategories,
     customQuestions: [],
     removedQuestionIds: [],
@@ -224,14 +228,26 @@ export function dedupeInProgressSessions(sessions: PracticeSession[]): PracticeS
 export function normalizeState(input: unknown): AppState {
   if (!input || typeof input !== 'object') return emptyState()
   const parsed = input as AppState & { removedQuestionIds?: unknown }
+  const applications = migrateApplications((parsed as AppState).applications)
   const migratedSessions = (parsed.sessions ?? []).map((s) => {
     const rawS = s as typeof s & {
       phasePausedRemainingSec?: number
       phasePausedElapsedSec?: number
+      appsJobDoc?: unknown
+      appsApplicationIds?: unknown
+      appsActiveId?: unknown
     }
     const session = {
       ...rawS,
       reflection: normalizeReflection(rawS.reflection),
+      appsJobDoc: normalizeAppsJobDoc(rawS.appsJobDoc) ?? rawS.appsJobDoc,
+      appsApplicationIds: Array.isArray(rawS.appsApplicationIds)
+        ? rawS.appsApplicationIds.filter((id): id is string => typeof id === 'string')
+        : undefined,
+      appsActiveId:
+        typeof rawS.appsActiveId === 'string' || rawS.appsActiveId === null
+          ? rawS.appsActiveId
+          : undefined,
     }
     if (
       typeof session.phasePausedRemainingSec === 'number' &&
@@ -244,8 +260,39 @@ export function normalizeState(input: unknown): AppState {
     }
     delete session.phasePausedRemainingSec
     if (session.inProgress && !session.phaseStartedAt && session.phasePausedElapsedSec == null) {
-      session.phaseStartedAt = new Date().toISOString()
+      // Prefer session start so a refresh doesn't wipe elapsed time back to zero.
+      session.phaseStartedAt =
+        typeof session.startedAt === 'string' && session.startedAt
+          ? session.startedAt
+          : new Date().toISOString()
     }
+
+    if (
+      !session.inProgress &&
+      session.completedAt &&
+      (!session.categoryMinutes ||
+        Object.values(session.categoryMinutes).every((n) => !n || n <= 0))
+    ) {
+      session.categoryMinutes = minutesByCategory(session, session.completedAt)
+    }
+
+    // Lift legacy single JD into the applications bank when the session has no ids yet.
+    if (
+      session.kind === 'apps-block' &&
+      (!session.appsApplicationIds || session.appsApplicationIds.length === 0) &&
+      session.appsJobDoc &&
+      (session.appsJobDoc.text.trim() || session.appsJobDoc.annotations.length)
+    ) {
+      const lifted = applicationFromLegacyJobDoc(
+        session.appsJobDoc,
+        session.phases?.[0]?.prompt,
+      )
+      applications.unshift(lifted)
+      session.appsApplicationIds = [lifted.id]
+      session.appsActiveId = lifted.id
+      session.appsJobDoc = undefined
+    }
+
     return session
   })
   const sessions = dedupeInProgressSessions(migratedSessions)
@@ -258,6 +305,7 @@ export function normalizeState(input: unknown): AppState {
   const categoryIdSet = new Set(categoryIds)
   const base: AppState = {
     stories: migrateStories(parsed.stories),
+    applications,
     promptCategories,
     customQuestions: migrateQuestions(parsed.customQuestions, categoryIdSet),
     removedQuestionIds: migrateRemovedQuestionIds(parsed.removedQuestionIds),
