@@ -14,9 +14,12 @@ import {
   retrieveDsaFromTrackers,
 } from '../lib/retrieveDsa'
 import { homeForKind, isPhasePaused, phaseElapsedSec } from '../lib/sessionPlan'
+import { deleteSessionMedia } from '../lib/storage'
 import {
   SESSION_META,
   emptyReflection,
+  reflectionHasContent,
+  type MediaKind,
   type PracticeSession,
   type Reflection,
 } from '../lib/types'
@@ -36,6 +39,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const [timesUp, setTimesUp] = useState(false)
   const [reflecting, setReflecting] = useState(false)
   const [reflection, setReflection] = useState<Reflection>(emptyReflection())
+  const [recordHint, setRecordHint] = useState('')
   const sessionRef = useRef(session)
   sessionRef.current = session
 
@@ -141,6 +145,15 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
     return 'Speak — clock is running'
   }, [phase])
 
+  const phaseTitle = useMemo(() => {
+    if (!phase) return SESSION_META[session.kind].title
+    if (session.kind === 'comm-draft') {
+      if (phase.kind === 'draft') return 'Draft the answer'
+      if (phase.kind === 'deliver') return 'Talk from the draft'
+    }
+    return SESSION_META[session.kind].title
+  }, [phase, session.kind])
+
   const patch = useCallback(
     (partial: Partial<PracticeSession>) => {
       dispatch({ type: 'patch-session', session: { ...session, ...partial } })
@@ -151,7 +164,12 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const updateAnswer = useCallback(
     (
       match: { questionId: string; storyId?: string },
-      next: { draftNotes?: string; transcript?: string; audioId?: string },
+      next: {
+        draftNotes?: string
+        transcript?: string
+        audioId?: string
+        mediaKind?: MediaKind
+      },
     ) => {
       dispatch({
         type: 'patch-session',
@@ -167,6 +185,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   )
 
   const advance = useCallback(() => {
+    setRecordHint('')
     const next = session.currentPhaseIndex + 1
     if (next >= session.phases.length) {
       patch({ phasePausedElapsedSec: phaseElapsedSec(session) })
@@ -181,7 +200,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
       phaseStartedAt: new Date().toISOString(),
       phasePausedElapsedSec: undefined,
     })
-  }, [patch, session])
+  }, [patch, phase, session])
 
   const backFromReflect = useCallback(() => {
     setReflecting(false)
@@ -214,7 +233,8 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   )
 
   function finish(skip = false) {
-    const shouldSaveReflection = !(skip || !reflection.note.trim())
+    const shouldSaveReflection = !(skip || !reflectionHasContent(reflection))
+    void deleteSessionMedia(session).catch(() => {})
     dispatch({
       type: 'complete-session',
       id: session.id,
@@ -222,6 +242,8 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
     })
     navigate(homeForKind(session.kind))
   }
+
+  const workLocked = timesUp
 
   if (reflecting) {
     if (session.kind === 'dsa-block') {
@@ -308,8 +330,10 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                 <textarea
                   className="notes"
                   placeholder="What stuck, what to retry, patterns to remember…"
-                  value={reflection.note}
-                  onChange={(e) => setReflection({ note: e.target.value })}
+                  value={reflection.additionalNotes}
+                  onChange={(e) =>
+                    setReflection((prev) => ({ ...prev, additionalNotes: e.target.value }))
+                  }
                 />
               </label>
             </div>
@@ -322,7 +346,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
       <div className="studio-frame recap-page">
         <header className="studio-top">
           <div>
-            <p className="kicker">Note, then look back</p>
+            <p className="kicker">Look back</p>
             <strong>What just happened?</strong>
           </div>
           <div className="studio-controls">
@@ -336,16 +360,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
         </header>
         <div className="studio-body">
           <div className="prompt reflect stack">
-            <p className="muted">Capture the signal. Leave the rest.</p>
-            <label className="field">
-              Note
-              <textarea
-                className="notes"
-                placeholder="Stuck, ramble, what landed, what to retry — whatever is useful."
-                value={reflection.note}
-                onChange={(e) => setReflection({ note: e.target.value })}
-              />
-            </label>
+            <p className="muted">Review the take, then capture what matters.</p>
             <h2>This session</h2>
             {session.answers.map((a, i) => (
               <QuestionRecap
@@ -357,6 +372,37 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                 }
               />
             ))}
+            <label className="field">
+              What went well
+              <textarea
+                className="notes"
+                placeholder="What landed — clarity, presence, structure…"
+                value={reflection.wentWell}
+                onChange={(e) => setReflection((prev) => ({ ...prev, wentWell: e.target.value }))}
+              />
+            </label>
+            <label className="field">
+              What could be improved
+              <textarea
+                className="notes"
+                placeholder="What to tighten next time…"
+                value={reflection.couldImprove}
+                onChange={(e) =>
+                  setReflection((prev) => ({ ...prev, couldImprove: e.target.value }))
+                }
+              />
+            </label>
+            <label className="field">
+              Additional Notes (optional)
+              <textarea
+                className="notes"
+                placeholder="Anything else worth keeping."
+                value={reflection.additionalNotes}
+                onChange={(e) =>
+                  setReflection((prev) => ({ ...prev, additionalNotes: e.target.value }))
+                }
+              />
+            </label>
           </div>
         </div>
       </div>
@@ -391,8 +437,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
             ) : (
               <>
                 <p className="kicker">
-                  {SESSION_META[session.kind].title} · {session.currentPhaseIndex + 1}/
-                  {session.phases.length}
+                  {phaseTitle} · {session.currentPhaseIndex + 1}/{session.phases.length}
                 </p>
                 {timesUp ? (
                   <strong>Goal time reached — keep going if you want</strong>
@@ -407,6 +452,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
               className={paused ? 'btn' : 'btn ghost'}
               type="button"
               onClick={togglePause}
+              disabled={workLocked}
             >
               {paused ? 'Resume' : 'Pause'}
             </button>
@@ -446,13 +492,15 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
           ) : null}
           {!blocking && (
             <p className="muted" style={{ marginBottom: 10, textAlign: 'center' }}>
-              {thinking
-                ? 'Organize in your head. Do not write.'
-                : drafting
-                  ? 'Write the answer you would actually say. Tight, not a novel.'
-                  : phase.kind === 'speak'
-                    ? 'Speak. No notes.'
-                    : 'The draft is hidden. Speak.'}
+              {workLocked
+                ? 'Time is up. Your current work is saved. Move on to the next step.'
+                : thinking
+                  ? 'Organize in your head. Do not write.'
+                  : drafting
+                    ? 'Write the answer you would actually say. Tight, not a novel.'
+                    : phase.kind === 'speak'
+                      ? 'Speak. No notes.'
+                      : 'The draft is hidden. You can practice without recording.'}
             </p>
           )}
           {!isDsaBlock ? <h1 style={{ textAlign: 'center' }}>{phase.prompt}</h1> : null}
@@ -473,23 +521,31 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
               className="notes"
               placeholder="Situation, the hard part, the choice, what happened — in language you can speak."
               value={answer?.draftNotes ?? ''}
-              onChange={(e) =>
+              disabled={workLocked}
+              onChange={(e) => {
+                if (workLocked) return
                 updateAnswer(
                   { questionId: phase.questionId, storyId: phase.storyId },
                   { draftNotes: e.target.value },
                 )
-              }
+              }}
               style={{ marginTop: 20 }}
             />
           ) : null}
           {speaking ? (
-            <Recorder
-              audioId={answer?.audioId}
-              transcript={answer?.transcript ?? ''}
-              onChange={(next) =>
-                updateAnswer({ questionId: phase.questionId, storyId: phase.storyId }, next)
-              }
-            />
+            <>
+              <Recorder
+                audioId={answer?.audioId}
+                mediaKind={answer?.mediaKind}
+                transcript={answer?.transcript ?? ''}
+                disabled={workLocked}
+                onChange={(next) => {
+                  if (next.audioId) setRecordHint('')
+                  updateAnswer({ questionId: phase.questionId, storyId: phase.storyId }, next)
+                }}
+              />
+              {recordHint ? <p className="muted">{recordHint}</p> : null}
+            </>
           ) : null}
         </article>
       </div>

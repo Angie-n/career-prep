@@ -63,6 +63,8 @@ export function Practice() {
     const built = buildSession(kind, state.customQuestions, {
       draft,
       minutes: durationFor(state.durations, kind),
+      deliverMinutes:
+        kind === 'comm-draft' ? durationFor(state.durations, 'comm-deliver') : undefined,
       removedQuestionIds: state.removedQuestionIds,
       promptCategoryIds: selectedIds,
     })
@@ -111,7 +113,7 @@ export function Practice() {
       <div className="page-head">
         <p className="kicker">Communication</p>
         <h1>Practice Delivering</h1>
-        <p className="lead">Draft. Deliver. Or go cold — get reps in.</p>
+        <p className="lead">Draft then deliver — or go straight shooting.</p>
       </div>
       <CategorySubnav category="communication" />
       <CategoryGlance category="communication" />

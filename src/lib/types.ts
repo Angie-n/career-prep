@@ -93,6 +93,8 @@ export type PlannedPhase = {
   notes?: string
 }
 
+export type MediaKind = 'audio' | 'video'
+
 export type SessionAnswer = {
   questionId: string
   prompt: string
@@ -100,6 +102,8 @@ export type SessionAnswer = {
   draftNotes: string
   transcript: string
   audioId?: string
+  /** Set when a take was recorded; older sessions may omit (treat as audio). */
+  mediaKind?: MediaKind
 }
 
 export type DsaRetrievedItem = {
@@ -119,7 +123,9 @@ export type DsaRetrievedItem = {
 }
 
 export type Reflection = {
-  note: string
+  wentWell: string
+  couldImprove: string
+  additionalNotes: string
 }
 
 export type PracticeSession = {
@@ -229,12 +235,12 @@ export const SESSION_META: Record<
   'comm-draft': {
     title: 'Draft the answer',
     minutes: 15,
-    blurb: "One question. Write what you'd actually say.",
+    blurb: 'Write it, then deliver on camera. One question, two beats.',
   },
   'comm-deliver': {
     title: 'Talk from the draft',
     minutes: 10,
-    blurb: 'Same question. Draft hidden. Speak it.',
+    blurb: 'Same question. Draft hidden. Record your delivery.',
   },
   'comm-cold': {
     title: 'Rapid Fire',
@@ -278,16 +284,43 @@ export function emptyStory(): Omit<Story, 'id' | 'createdAt' | 'updatedAt'> {
 }
 
 export function emptyReflection(): Reflection {
-  return { note: '' }
+  return { wentWell: '', couldImprove: '', additionalNotes: '' }
+}
+
+function reflectionField(raw: unknown): string {
+  return typeof raw === 'string' ? raw : ''
 }
 
 export function normalizeReflection(raw: unknown): Reflection | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const r = raw as Record<string, unknown>
-  if (typeof r.note === 'string') return { note: r.note }
+  const wentWell = reflectionField(r.wentWell)
+  const couldImprove = reflectionField(r.couldImprove)
+  const additionalNotes = reflectionField(r.additionalNotes)
+  if (wentWell || couldImprove || additionalNotes) {
+    return { wentWell, couldImprove, additionalNotes }
+  }
+  if (typeof r.note === 'string' && r.note.trim()) {
+    return { wentWell: '', couldImprove: '', additionalNotes: r.note }
+  }
   const parts = ['stuck', 'ramble', 'explainedWell', 'knowledgeGap', 'practiceAgain']
     .map((k) => r[k])
     .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
   if (!parts.length) return undefined
-  return { note: parts.join('\n') }
+  return { wentWell: '', couldImprove: '', additionalNotes: parts.join('\n') }
+}
+
+export function reflectionHasContent(r?: Reflection): boolean {
+  if (!r) return false
+  return Boolean(r.wentWell.trim() || r.couldImprove.trim() || r.additionalNotes.trim())
+}
+
+export function reflectionSnippet(r?: Reflection, max = 80): string {
+  if (!r) return ''
+  const text = [r.wentWell, r.couldImprove, r.additionalNotes]
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(' · ')
+  if (!text) return ''
+  return text.length > max ? `${text.slice(0, max)}…` : text
 }

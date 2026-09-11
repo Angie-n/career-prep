@@ -1,7 +1,13 @@
 import { todayKey } from './ids'
 import { sessionElapsedSec } from './sessionPlan'
 import type { AppState, Category, DailyGoals, PracticeSession, SessionAnswer } from './types'
-import { CATEGORIES, CATEGORY_BY_KIND, CATEGORY_LABEL, COMM_KINDS } from './types'
+import {
+  CATEGORIES,
+  CATEGORY_BY_KIND,
+  CATEGORY_LABEL,
+  COMM_KINDS,
+  reflectionHasContent,
+} from './types'
 
 export function completedSessions(state: AppState): PracticeSession[] {
   return state.sessions.filter((s) => s.completedAt && !s.inProgress)
@@ -145,7 +151,7 @@ export function neglectedCategories(state: AppState): Category[] {
 
 export function recentReflections(state: AppState, limit = 4) {
   return completedSessions(state)
-    .filter((s) => s.reflection?.note.trim())
+    .filter((s) => reflectionHasContent(s.reflection))
     .slice()
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
     .slice(0, limit)
@@ -155,7 +161,7 @@ export function improvingNote(state: AppState): string {
   const done = completedSessions(state)
   if (done.length < 2) return 'A few sessions will be enough to see what keeps coming up.'
   const last = done.slice(-4)
-  const notes = last.map((s) => s.reflection?.note.trim()).filter(Boolean)
+  const notes = last.filter((s) => reflectionHasContent(s.reflection))
   if (notes.length) return 'Your notes are the practice list — not a score.'
   const minutes = minutesLastDays(state, 7)
   const total = CATEGORIES.reduce((n, c) => n + minutes[c], 0)
