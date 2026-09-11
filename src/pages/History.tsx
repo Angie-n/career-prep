@@ -10,7 +10,6 @@ import {
   CATEGORIES,
   CATEGORY_LABEL,
   SESSION_META,
-  emptyAppsJobDoc,
   type PracticeSession,
 } from '../lib/types'
 import { useStore } from '../state/Store'
@@ -49,10 +48,32 @@ export function History() {
           )
         })}
       </div>
-      {selected.reflection?.note.trim() ? (
+      {selected.reflection &&
+      (selected.reflection.gotDone?.trim() ||
+        selected.reflection.doNext?.trim() ||
+        selected.reflection.note.trim()) ? (
         <section className="card">
-          <p className="kicker">{selected.kind === 'dsa-block' ? 'Key Takeaways' : 'Note'}</p>
-          <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.note}</p>
+          {selected.reflection.gotDone?.trim() || selected.reflection.doNext?.trim() ? (
+            <div className="stack">
+              {selected.reflection.gotDone?.trim() ? (
+                <div>
+                  <p className="kicker">What did you get done?</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.gotDone}</p>
+                </div>
+              ) : null}
+              {selected.reflection.doNext?.trim() ? (
+                <div>
+                  <p className="kicker">What should be done next?</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.doNext}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <p className="kicker">{selected.kind === 'dsa-block' ? 'Key Takeaways' : 'Note'}</p>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.note}</p>
+            </>
+          )}
         </section>
       ) : null}
       {selected.kind === 'dsa-block' ? (
@@ -110,8 +131,13 @@ export function History() {
         </>
       ) : selected.kind === 'apps-block' ? (
         <section className="card apps-history-card">
-          <p className="kicker">Job description</p>
-          <AppsSessionPanel jobDoc={selected.appsJobDoc ?? emptyAppsJobDoc()} readOnly />
+          <p className="kicker">Applications</p>
+          <AppsSessionPanel
+            openIds={selected.appsApplicationIds ?? []}
+            activeId={selected.appsActiveId ?? selected.appsApplicationIds?.[0] ?? null}
+            bank={state.applications}
+            readOnly
+          />
         </section>
       ) : (
         selected.answers.map((a, i) => (

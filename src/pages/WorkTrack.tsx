@@ -125,7 +125,8 @@ export function WorkTrack({
             ) : null}
             {!matchingActive && category === 'applications' ? (
               <p className="muted start-card-hint">
-                After you start, paste the job description and highlight lines to leave comments.
+                After you start, open one or more applications — paste JDs, set status, and add notes
+                and links.
               </p>
             ) : null}
             <div className="start-card-actions">

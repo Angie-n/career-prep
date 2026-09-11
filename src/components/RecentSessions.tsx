@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { sessionsForCategory } from '../lib/insights'
 import { formatWhen } from '../lib/ids'
 import { deleteSessionMedia } from '../lib/storage'
-import { SESSION_META, type Category } from '../lib/types'
+import { SESSION_META, reflectionSummary, type Category } from '../lib/types'
 import { useStore } from '../state/Store'
 
 export function RecentSessions({ category }: { category: Category }) {
@@ -30,7 +30,9 @@ export function RecentSessions({ category }: { category: Category }) {
               <strong>{SESSION_META[s.kind].title}</strong>
               <div className="muted">
                 {s.completedAt ? formatWhen(s.completedAt) : ''}
-                {s.reflection?.note.trim() ? ` · ${s.reflection.note.trim().slice(0, 80)}` : ''}
+                {reflectionSummary(s.reflection)
+                  ? ` · ${reflectionSummary(s.reflection).slice(0, 80)}`
+                  : ''}
               </div>
             </div>
             <div className="row">

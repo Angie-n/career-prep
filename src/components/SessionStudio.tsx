@@ -17,7 +17,6 @@ import {
 import { homeForKind, isPhasePaused, phaseElapsedSec } from '../lib/sessionPlan'
 import {
   SESSION_META,
-  emptyAppsJobDoc,
   emptyReflection,
   type PracticeSession,
   type Reflection,
@@ -216,11 +215,21 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   )
 
   function finish(skip = false) {
-    const shouldSaveReflection = !(skip || !reflection.note.trim())
+    const hasAppsReflection =
+      Boolean(reflection.gotDone?.trim()) || Boolean(reflection.doNext?.trim())
+    const hasNote = Boolean(reflection.note.trim())
+    const shouldSaveReflection = !(skip || !(hasNote || hasAppsReflection))
+    const saved: Reflection | undefined = shouldSaveReflection
+      ? {
+          note: reflection.note,
+          ...(reflection.gotDone?.trim() ? { gotDone: reflection.gotDone } : {}),
+          ...(reflection.doNext?.trim() ? { doNext: reflection.doNext } : {}),
+        }
+      : undefined
     dispatch({
       type: 'complete-session',
       id: session.id,
-      reflection: shouldSaveReflection ? reflection : undefined,
+      reflection: saved,
     })
     navigate(homeForKind(session.kind))
   }
@@ -321,14 +330,13 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
     }
 
     if (session.kind === 'apps-block') {
-      const jobDoc = session.appsJobDoc ?? emptyAppsJobDoc()
       return (
         <div className="studio-frame recap-page apps-session-frame">
           <header className="studio-top">
             <div>
               <h1 className="studio-session-title">{SESSION_META[session.kind].title}</h1>
               <p className="muted" style={{ margin: '4px 0 0' }}>
-                Marked-up posting + takeaways
+                Reflect on this block
               </p>
             </div>
             <div className="studio-controls">
@@ -336,26 +344,29 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                 Back
               </button>
               <button className="btn" type="button" onClick={() => finish(false)}>
-                Conclude Session
+                End Reflection
               </button>
             </div>
           </header>
-          <div className="studio-body apps-recap-body">
-            <div className="prompt reflect stack apps-recap-prompt">
-              <p className="muted">
-                Your annotated job description stays with this session (not written to Sheets).
-              </p>
-              <AppsSessionPanel
-                jobDoc={jobDoc}
-                onChange={(appsJobDoc) => patch({ appsJobDoc })}
-              />
+          <div className="studio-body">
+            <div className="prompt reflect stack">
               <label className="field">
-                Key Takeaways
+                What did you get done?
                 <textarea
                   className="notes"
-                  placeholder="Fit, gaps, outreach angle, what to customize next…"
-                  value={reflection.note}
-                  onChange={(e) => setReflection({ note: e.target.value })}
+                  placeholder="Roles opened, postings marked up, notes written, applications submitted…"
+                  value={reflection.gotDone ?? ''}
+                  onChange={(e) => setReflection({ ...reflection, gotDone: e.target.value })}
+                  autoFocus
+                />
+              </label>
+              <label className="field">
+                What should be done next?
+                <textarea
+                  className="notes"
+                  placeholder="Follow-ups, gaps to close, outreach, next applications…"
+                  value={reflection.doNext ?? ''}
+                  onChange={(e) => setReflection({ ...reflection, doNext: e.target.value })}
                 />
               </label>
             </div>
@@ -419,7 +430,6 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
   const isDsaBlock = session.kind === 'dsa-block' && blocking
   const isAppsBlock = session.kind === 'apps-block' && blocking
   const wideBlock = isDsaBlock || isAppsBlock
-  const jobDoc = session.appsJobDoc ?? emptyAppsJobDoc()
 
   return (
     <div
@@ -436,7 +446,7 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
                     {phase.prompt}
                   </p>
                 ) : null}
-                {timesUp ? (
+                {!isAppsBlock && timesUp ? (
                   <p className="muted" style={{ margin: '4px 0 0' }}>
                     Goal time reached — keep going if you want
                   </p>
@@ -457,20 +467,52 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
             )}
           </div>
           <div className="studio-controls">
-            <button
-              className={paused ? 'btn' : 'btn ghost'}
-              type="button"
-              onClick={togglePause}
-            >
-              {paused ? 'Resume' : 'Pause'}
-            </button>
+            {isAppsBlock ? (
+              <div className="apps-session-clock">
+                <Timer
+                  key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
+                  elapsedSec={timerElapsed}
+                  startedAt={timerStartedAt}
+                  targetSec={timerTarget}
+                  running={!paused}
+                  onExpire={setTimesUp}
+                  variant="elapsed"
+                />
+                <button
+                  className="apps-session-clock-toggle"
+                  type="button"
+                  onClick={togglePause}
+                  aria-label={paused ? 'Resume timer' : 'Pause timer'}
+                  title={paused ? 'Resume' : 'Pause'}
+                >
+                  {paused ? (
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                      <path d="M5 3.2v9.6L13 8 5 3.2z" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                      <rect x="3.5" y="3" width="3" height="10" rx="0.75" fill="currentColor" />
+                      <rect x="9.5" y="3" width="3" height="10" rx="0.75" fill="currentColor" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <button
+                className={paused ? 'btn' : 'btn ghost'}
+                type="button"
+                onClick={togglePause}
+              >
+                {paused ? 'Resume' : 'Pause'}
+              </button>
+            )}
             <button className={timesUp ? 'btn' : 'btn ghost'} type="button" onClick={advance}>
-              Next
+              {isAppsBlock ? 'End Session' : 'Next'}
             </button>
           </div>
         </header>
-        {wideBlock ? (
-          <div className={isDsaBlock ? 'dsa-sticky-timer' : 'apps-sticky-timer'}>
+        {isDsaBlock ? (
+          <div className="dsa-sticky-timer">
             <Timer
               key={`${phase.id}-${session.phaseStartedAt ?? ''}-${session.phasePausedElapsedSec ?? 'run'}`}
               elapsedSec={timerElapsed}
@@ -524,8 +566,16 @@ export function SessionStudio({ session }: { session: PracticeSession }) {
           ) : null}
           {isAppsBlock ? (
             <AppsSessionPanel
-              jobDoc={jobDoc}
-              onChange={(appsJobDoc) => patch({ appsJobDoc })}
+              openIds={session.appsApplicationIds ?? []}
+              activeId={session.appsActiveId ?? null}
+              bank={state.applications}
+              onSessionApps={({ openIds: appsApplicationIds, activeId: appsActiveId }) =>
+                patch({ appsApplicationIds, appsActiveId })
+              }
+              onUpsert={(application) =>
+                dispatch({ type: 'upsert-application', application })
+              }
+              onDelete={(id) => dispatch({ type: 'delete-application', id })}
             />
           ) : null}
           {drafting ? (
