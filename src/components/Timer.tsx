@@ -66,6 +66,7 @@ export function Timer({
   }, [running, startedAt, elapsedSec])
 
   function bump(delta: number) {
+    if (targetSec > 0 && elapsed >= targetSec) return
     onAdjustTarget?.(delta)
   }
 
@@ -75,7 +76,7 @@ export function Timer({
   const metaLabel = !running
     ? `Paused · ${formatClock(elapsed)} / ${formatClock(targetSec)}`
     : pastTarget
-      ? `+${formatClock(overSec)} past goal`
+      ? `+${formatClock(overSec)} overtime`
       : `${formatClock(elapsed)} / ${formatClock(targetSec)}`
 
   const clock = (
@@ -108,11 +109,21 @@ export function Timer({
   if (variant === 'hero') {
     return (
       <div className={`timer-hero${running ? '' : ' is-paused'}`}>
-        <button className="btn ghost timer-hero-bump" type="button" onClick={() => bump(-60)}>
+        <button
+          className="btn ghost timer-hero-bump"
+          type="button"
+          onClick={() => bump(-60)}
+          disabled={pastTarget && running}
+        >
           −1m
         </button>
         {clock}
-        <button className="btn ghost timer-hero-bump" type="button" onClick={() => bump(60)}>
+        <button
+          className="btn ghost timer-hero-bump"
+          type="button"
+          onClick={() => bump(60)}
+          disabled={pastTarget && running}
+        >
           +1m
         </button>
         {progressUi}
@@ -130,14 +141,14 @@ export function Timer({
 
   return (
     <div className={`timer-box${running ? '' : ' is-paused'}`}>
-      <button className="btn ghost" type="button" onClick={() => bump(-60)}>
+      <button className="btn ghost" type="button" onClick={() => bump(-60)} disabled={pastTarget && running}>
         −1m
       </button>
       <div className="timer-box-main">
         {clock}
         {progressUi}
       </div>
-      <button className="btn ghost" type="button" onClick={() => bump(60)}>
+      <button className="btn ghost" type="button" onClick={() => bump(60)} disabled={pastTarget && running}>
         +1m
       </button>
     </div>

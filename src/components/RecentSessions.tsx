@@ -1,9 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ItemOverflowMenu } from './ItemOverflowMenu'
 import { sessionsForCategory } from '../lib/insights'
 import { formatWhen } from '../lib/ids'
 import { deleteSessionMedia } from '../lib/storage'
-import { SESSION_META, type Category, type PracticeSession } from '../lib/types'
+import { SESSION_META, reflectionSnippet, type Category, type PracticeSession } from '../lib/types'
 import { useStore } from '../state/Store'
 
 function sessionListMeta(s: PracticeSession): string {
@@ -45,18 +45,29 @@ export function RecentSessions({ category }: { category: Category }) {
           >
             <div className="apps-bank-card-main">
               <h2>{SESSION_META[s.kind].title}</h2>
-              <p className="muted">{sessionListMeta(s)}</p>
+              <p className="muted">
+                {sessionListMeta(s)}
+                {(() => {
+                  const snip = reflectionSnippet(s.reflection)
+                  return snip ? ` · ${snip}` : ''
+                })()}
+              </p>
             </div>
           </button>
-          <ItemOverflowMenu
-            label="Session options"
-            deleteLabel="Delete session"
-            onDelete={() => {
-              if (!window.confirm('Delete this session? Recordings for it go too.')) return
-              void deleteSessionMedia(s)
-              dispatch({ type: 'delete-session', id: s.id })
-            }}
-          />
+          <div className="row">
+            <Link className="btn subtle" to={`/history/${s.id}`}>
+              Open
+            </Link>
+            <ItemOverflowMenu
+              label="Session options"
+              deleteLabel="Delete session"
+              onDelete={() => {
+                if (!window.confirm('Delete this session? Recordings for it go too.')) return
+                void deleteSessionMedia(s)
+                dispatch({ type: 'delete-session', id: s.id })
+              }}
+            />
+          </div>
         </article>
       ))}
     </div>

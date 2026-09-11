@@ -7,12 +7,7 @@ import { dsaDifficultyBucket } from '../lib/dsaStats'
 import { formatClock, formatWhen } from '../lib/ids'
 import { historyForKind } from '../lib/sessionPlan'
 import { deleteSessionMedia } from '../lib/storage'
-import {
-  CATEGORIES,
-  CATEGORY_LABEL,
-  SESSION_META,
-  type PracticeSession,
-} from '../lib/types'
+import { CATEGORIES, CATEGORY_LABEL, SESSION_META, reflectionHasContent, type PracticeSession } from '../lib/types'
 import { useStore } from '../state/Store'
 
 export function History() {
@@ -60,13 +55,17 @@ export function History() {
           )
         })}
       </div>
-      {selected.reflection &&
-      (selected.reflection.gotDone?.trim() ||
-        selected.reflection.doNext?.trim() ||
-        selected.reflection.note.trim()) ? (
-        <section className="card">
-          {selected.reflection.gotDone?.trim() || selected.reflection.doNext?.trim() ? (
-            <div className="stack">
+      {selected.reflection && reflectionHasContent(selected.reflection) ? (
+        <section className="card stack">
+          {selected.kind === 'dsa-block' ? (
+            <>
+              <p className="kicker">Key Takeaways</p>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {selected.reflection.additionalNotes || selected.reflection.note || '—'}
+              </p>
+            </>
+          ) : selected.kind === 'apps-block' ? (
+            <>
               {selected.reflection.gotDone?.trim() ? (
                 <div>
                   <p className="kicker">What did you get done?</p>
@@ -79,11 +78,35 @@ export function History() {
                   <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.doNext}</p>
                 </div>
               ) : null}
-            </div>
+              {selected.reflection.note?.trim() ? (
+                <div>
+                  <p className="kicker">Note</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.note}</p>
+                </div>
+              ) : null}
+            </>
           ) : (
             <>
-              <p className="kicker">{selected.kind === 'dsa-block' ? 'Key Takeaways' : 'Note'}</p>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.note}</p>
+              {selected.reflection.wentWell.trim() ? (
+                <>
+                  <p className="kicker">What went well</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.wentWell}</p>
+                </>
+              ) : null}
+              {selected.reflection.couldImprove.trim() ? (
+                <>
+                  <p className="kicker">What could be improved</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{selected.reflection.couldImprove}</p>
+                </>
+              ) : null}
+              {(selected.reflection.additionalNotes.trim() || selected.reflection.note?.trim()) ? (
+                <>
+                  <p className="kicker">Additional notes</p>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>
+                    {selected.reflection.additionalNotes || selected.reflection.note}
+                  </p>
+                </>
+              ) : null}
             </>
           )}
         </section>

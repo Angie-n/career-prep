@@ -140,6 +140,8 @@ export function buildSession(
   opts?: {
     draft?: SessionAnswer
     minutes?: number
+    /** Speak phase length when Draft includes Talk-from-draft (2/2). */
+    deliverMinutes?: number
     note?: string
     dsaRetrieved?: DsaRetrievedItem[]
     removedQuestionIds?: string[]
@@ -165,7 +167,10 @@ export function buildSession(
 
   if (kind === 'comm-draft') {
     const main = pick(pool, 1)[0]
-    if (main) add('draft', (opts?.minutes ?? 15) * 60, main)
+    if (main) {
+      add('draft', (opts?.minutes ?? 15) * 60, main)
+      add('deliver', (opts?.deliverMinutes ?? 10) * 60, main)
+    }
   }
 
   if (kind === 'comm-deliver') {
@@ -185,6 +190,7 @@ export function buildSession(
           ...draft,
           transcript: '',
           audioId: undefined,
+          mediaKind: undefined,
         },
       ])
     }

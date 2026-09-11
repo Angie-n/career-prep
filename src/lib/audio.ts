@@ -1,4 +1,7 @@
+import type { MediaKind } from './types'
+
 export type TranscriptHandler = (text: string, interim: string) => void
+export type { MediaKind }
 
 type Rec = {
   continuous: boolean
@@ -65,11 +68,45 @@ export function startLiveTranscript(onUpdate: TranscriptHandler): () => void {
   }
 }
 
-export async function recordAudio(): Promise<{
-  stop: () => Promise<{ blob: Blob; mime: string }>
-}> {
+function pickMime(kind: MediaKind): string {
+  if (kind === 'video') {
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+      return 'video/webm;codecs=vp9,opus'
+    }
+    if (MediaRecorder.isTypeSupported('video/webm')) return 'video/webm'
+    return ''
+  }
+  return MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : ''
+}
+
+async function openStream(preferVideo: boolean): Promise<{ stream: MediaStream; kind: MediaKind }> {
+  if (preferVideo) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      })
+      return { stream, kind: 'video' }
+    } catch {
+      // Camera denied/unavailable — still practice with audio.
+    }
+  }
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-  const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : ''
+  return { stream, kind: 'audio' }
+}
+
+/** Prefer camera+mic; fall back to audio-only when video is unavailable. */
+export async function recordMedia(preferVideo = true): Promise<{
+  stream: MediaStream
+  kind: MediaKind
+  stop: () => Promise<{ blob: Blob; mime: string; kind: MediaKind }>
+}> {
+  const { stream, kind } = await openStream(preferVideo)
+  const mime = pickMime(kind)
   const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined)
   const chunks: BlobPart[] = []
   recorder.ondataavailable = (e) => {
@@ -78,19 +115,33 @@ export async function recordAudio(): Promise<{
   recorder.start()
 
   return {
+    stream,
+    kind,
     stop: () =>
       new Promise((resolve) => {
-        recorder.onstop = () => {
+        const finish = () => {
           stream.getTracks().forEach((t) => t.stop())
-          const type = recorder.mimeType || 'audio/webm'
-          resolve({ blob: new Blob(chunks, { type }), mime: type })
+          const type =
+            recorder.mimeType || (kind === 'video' ? 'video/webm' : 'audio/webm')
+          resolve({ blob: new Blob(chunks, { type }), mime: type, kind })
         }
+        recorder.onstop = finish
         if (recorder.state !== 'inactive') recorder.stop()
-        else {
-          stream.getTracks().forEach((t) => t.stop())
-          resolve({ blob: new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }), mime: recorder.mimeType })
-        }
+        else finish()
       }),
+  }
+}
+
+/** @deprecated Prefer recordMedia — kept for call sites that only need audio. */
+export async function recordAudio(): Promise<{
+  stop: () => Promise<{ blob: Blob; mime: string }>
+}> {
+  const rec = await recordMedia(false)
+  return {
+    stop: async () => {
+      const { blob, mime } = await rec.stop()
+      return { blob, mime }
+    },
   }
 }
 

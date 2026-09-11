@@ -93,6 +93,8 @@ export type PlannedPhase = {
   notes?: string
 }
 
+export type MediaKind = 'audio' | 'video'
+
 export type SessionAnswer = {
   questionId: string
   prompt: string
@@ -100,6 +102,8 @@ export type SessionAnswer = {
   draftNotes: string
   transcript: string
   audioId?: string
+  /** Set when a take was recorded; older sessions may omit (treat as audio). */
+  mediaKind?: MediaKind
 }
 
 export type DsaRetrievedItem = {
@@ -264,8 +268,11 @@ export function applicationLabel(app: Pick<Application, 'role' | 'company'>): st
 }
 
 export type Reflection = {
+  wentWell: string
+  couldImprove: string
+  additionalNotes: string
   /** Freeform takeaways (DSA / communication, and legacy apps). */
-  note: string
+  note?: string
   /** Apps reflection: what got done this session. */
   gotDone?: string
   /** Apps reflection: what should be done next. */
@@ -390,12 +397,12 @@ export const SESSION_META: Record<
   'comm-draft': {
     title: 'Draft the answer',
     minutes: 15,
-    blurb: "One question. Write what you'd actually say.",
+    blurb: 'Write it, then deliver on camera. One question, two beats.',
   },
   'comm-deliver': {
     title: 'Talk from the draft',
     minutes: 10,
-    blurb: 'Same question. Draft hidden. Speak it.',
+    blurb: 'Same question. Draft hidden. Record your delivery.',
   },
   'comm-cold': {
     title: 'Rapid Fire',
@@ -439,7 +446,18 @@ export function emptyStory(): Omit<Story, 'id' | 'createdAt' | 'updatedAt'> {
 }
 
 export function emptyReflection(): Reflection {
-  return { note: '', gotDone: '', doNext: '' }
+  return {
+    wentWell: '',
+    couldImprove: '',
+    additionalNotes: '',
+    note: '',
+    gotDone: '',
+    doNext: '',
+  }
+}
+
+function reflectionField(raw: unknown): string {
+  return typeof raw === 'string' ? raw : ''
 }
 
 /** Single string for history / glance lines. */
@@ -450,25 +468,67 @@ export function reflectionSummary(r: Reflection | undefined): string {
   if (gotDone || doNext) {
     return [gotDone && `Done: ${gotDone}`, doNext && `Next: ${doNext}`].filter(Boolean).join(' · ')
   }
-  return r.note.trim()
+  const note = r.note?.trim() ?? ''
+  if (note) return note
+  const text = [r.wentWell, r.couldImprove, r.additionalNotes]
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(' · ')
+  return text
 }
 
 export function normalizeReflection(raw: unknown): Reflection | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const r = raw as Record<string, unknown>
-  const note = typeof r.note === 'string' ? r.note : ''
-  const gotDone = typeof r.gotDone === 'string' ? r.gotDone : undefined
-  const doNext = typeof r.doNext === 'string' ? r.doNext : undefined
-  if (note || gotDone?.trim() || doNext?.trim()) {
-    return {
-      note,
-      ...(gotDone !== undefined ? { gotDone } : {}),
-      ...(doNext !== undefined ? { doNext } : {}),
-    }
+  const wentWell = reflectionField(r.wentWell)
+  const couldImprove = reflectionField(r.couldImprove)
+  const additionalNotes = reflectionField(r.additionalNotes)
+  const note = reflectionField(r.note)
+  const gotDone = reflectionField(r.gotDone)
+  const doNext = reflectionField(r.doNext)
+  const merged = {
+    wentWell,
+    couldImprove,
+    additionalNotes,
+    ...(note ? { note } : {}),
+    ...(gotDone ? { gotDone } : {}),
+    ...(doNext ? { doNext } : {}),
+  }
+  if (wentWell || couldImprove || additionalNotes || note || gotDone || doNext) {
+    return merged
   }
   const parts = ['stuck', 'ramble', 'explainedWell', 'knowledgeGap', 'practiceAgain']
     .map((k) => r[k])
     .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
   if (!parts.length) return undefined
-  return { note: parts.join('\n') }
+  return { wentWell: '', couldImprove: '', additionalNotes: parts.join('\n'), note: parts.join('\n') }
+}
+
+export function reflectionHasContent(r?: Reflection): boolean {
+  if (!r) return false
+  return Boolean(
+    r.wentWell.trim() ||
+      r.couldImprove.trim() ||
+      r.additionalNotes.trim() ||
+      r.note?.trim() ||
+      r.gotDone?.trim() ||
+      r.doNext?.trim(),
+  )
+}
+
+export function reflectionSnippet(r?: Reflection, max = 80): string {
+  if (!r) return ''
+  const text = [
+    r.note,
+    r.gotDone,
+    r.doNext,
+    r.wentWell,
+    r.couldImprove,
+    r.additionalNotes,
+  ]
+    .map((s) => s?.trim() ?? '')
+    .filter(Boolean)
+    .join(' · ')
+  if (!text) return ''
+  return text.length > max ? `${text.slice(0, max)}…` : text
 }
