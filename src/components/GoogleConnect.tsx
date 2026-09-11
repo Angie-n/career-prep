@@ -34,7 +34,7 @@ export function GoogleConnect({ compact = false }: { compact?: boolean }) {
               setError('')
             }}
           >
-            Sign out of Google
+            {compact ? 'Sign out of Google' : 'Revoke Sheets access'}
           </button>
         ) : (
           <button
@@ -49,10 +49,10 @@ export function GoogleConnect({ compact = false }: { compact?: boolean }) {
                 .finally(() => setBusy(false))
             }}
           >
-            Sign in with Google
+            {compact ? 'Sign in with Google' : 'Allow access to Google Sheets'}
           </button>
         )}
-        {token && !compact ? <span className="chip ember">Signed in</span> : null}
+        {token && !compact ? <span className="chip ember">Sheets connected</span> : null}
       </div>
       {error ? <p className="muted">{error}</p> : null}
     </div>

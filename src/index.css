@@ -363,13 +363,6 @@ p {
   transform: none;
 }
 
-.nav-foot {
-  margin-top: auto;
-  padding: 12px;
-  color: var(--faint);
-  font-size: 13px;
-}
-
 .main {
   min-width: 0;
   width: 100%;
@@ -3128,7 +3121,6 @@ details.fold[open] summary {
   .nav-links a:hover {
     transform: none;
   }
-  .nav-foot,
   .brand small {
     display: none;
   }
@@ -3352,5 +3344,265 @@ details.fold[open] summary {
 
   .goal-row.goal-link:hover {
     box-shadow: none;
+  }
+}
+
+.welcome-gate {
+  min-height: 100dvh;
+  display: grid;
+  padding: 0;
+  background: #fff;
+}
+
+.welcome-gate-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 0;
+  align-items: stretch;
+  width: 100%;
+  min-height: 100dvh;
+}
+
+.welcome-gate-visual {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background:
+    radial-gradient(ellipse 95% 80% at 38% 42%, #5a708c 0%, #455a75 55%, #3a4d66 100%);
+}
+
+.welcome-marks {
+  position: relative;
+  width: min(36rem, 94%);
+  aspect-ratio: 1.05;
+}
+
+.welcome-mark {
+  --welcome-rot: 0deg;
+  position: absolute;
+  display: grid;
+  place-items: center;
+  color: rgba(232, 238, 245, 0.26);
+  will-change: transform, opacity;
+  animation: welcome-stair 6s linear infinite;
+}
+
+.welcome-mark:nth-child(1) {
+  top: -2%;
+  left: -4%;
+  --welcome-rot: -11deg;
+  color: rgba(232, 238, 245, 0.3);
+  animation-delay: 0s;
+}
+
+.welcome-mark:nth-child(1) svg {
+  width: clamp(12rem, 30vw, 17.5rem);
+  height: clamp(12rem, 30vw, 17.5rem);
+}
+
+.welcome-mark:nth-child(2) {
+  top: 28%;
+  right: -8%;
+  --welcome-rot: 14deg;
+  color: rgba(232, 238, 245, 0.22);
+  animation-delay: -2s;
+}
+
+.welcome-mark:nth-child(2) svg {
+  width: clamp(11rem, 27vw, 15.5rem);
+  height: clamp(11rem, 27vw, 15.5rem);
+}
+
+.welcome-mark:nth-child(3) {
+  bottom: -4%;
+  left: 16%;
+  --welcome-rot: -5deg;
+  color: rgba(232, 238, 245, 0.28);
+  animation-delay: -4s;
+}
+
+.welcome-mark:nth-child(3) svg {
+  width: clamp(10.5rem, 26vw, 14.5rem);
+  height: clamp(10.5rem, 26vw, 14.5rem);
+}
+
+@keyframes welcome-stair {
+  0% {
+    transform: translate3d(0, 3.5rem, 0) rotate(var(--welcome-rot));
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  12% {
+    transform: translate3d(0, 3.5rem, 0) rotate(var(--welcome-rot));
+  }
+  20% {
+    transform: translate3d(0, 1.75rem, 0) rotate(var(--welcome-rot));
+  }
+  30% {
+    transform: translate3d(0, 1.75rem, 0) rotate(var(--welcome-rot));
+  }
+  38% {
+    transform: translate3d(0, 0, 0) rotate(var(--welcome-rot));
+  }
+  48% {
+    transform: translate3d(0, 0, 0) rotate(var(--welcome-rot));
+  }
+  56% {
+    transform: translate3d(0, -1.75rem, 0) rotate(var(--welcome-rot));
+  }
+  66% {
+    transform: translate3d(0, -1.75rem, 0) rotate(var(--welcome-rot));
+  }
+  74% {
+    transform: translate3d(0, -3.5rem, 0) rotate(var(--welcome-rot));
+  }
+  84% {
+    transform: translate3d(0, -3.5rem, 0) rotate(var(--welcome-rot));
+    opacity: 1;
+  }
+  92% {
+    transform: translate3d(0, -5.25rem, 0) rotate(var(--welcome-rot));
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(0, -5.25rem, 0) rotate(var(--welcome-rot));
+    opacity: 0;
+  }
+}
+
+.welcome-gate-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-height: 100%;
+  justify-self: stretch;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 16px;
+  padding: clamp(2rem, 5vw, 3.5rem) clamp(1.75rem, 5vw, 4rem);
+  background: #fff;
+}
+
+.welcome-gate-panel > * {
+  width: min(26rem, 100%);
+}
+
+.welcome-gate-actions {
+  gap: 0.85rem;
+  align-items: stretch;
+}
+
+.welcome-gsi {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 40px;
+  /* GIS iframe uses margin: -2px -10px; pad so the chrome isn’t clipped */
+  padding: 2px 10px;
+  margin: -2px -10px;
+  overflow: visible;
+  line-height: 0;
+}
+
+.welcome-skip {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, var(--muted) 40%, transparent);
+  transition: color var(--dur-fast) ease, text-decoration-color var(--dur-fast) ease;
+}
+
+.welcome-skip:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration-color: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+
+.welcome-skip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.app-gsi {
+  width: fit-content;
+}
+
+@media (max-width: 800px) {
+  .welcome-gate-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(12rem, 32dvh) auto;
+    min-height: 100dvh;
+  }
+
+  .welcome-gate-visual {
+    padding: 1.25rem 1rem;
+  }
+
+  .welcome-marks {
+    width: min(22rem, 92%);
+    aspect-ratio: 1.2;
+  }
+
+  .welcome-mark:nth-child(1) svg {
+    width: clamp(7.5rem, 28vw, 10rem);
+    height: clamp(7.5rem, 28vw, 10rem);
+  }
+
+  .welcome-mark:nth-child(2) svg {
+    width: clamp(6.75rem, 25vw, 9rem);
+    height: clamp(6.75rem, 25vw, 9rem);
+  }
+
+  .welcome-mark:nth-child(3) svg {
+    width: clamp(6.5rem, 24vw, 8.5rem);
+    height: clamp(6.5rem, 24vw, 8.5rem);
+  }
+
+  .welcome-gate-panel {
+    justify-self: stretch;
+    align-items: center;
+    text-align: center;
+    padding: 1.75rem 1.5rem 2.5rem;
+  }
+
+  .welcome-gate-panel > * {
+    width: min(24rem, 100%);
+  }
+
+  .welcome-gate-panel .page-head {
+    text-align: center;
+  }
+
+  .welcome-gate-actions {
+    align-items: center;
+  }
+
+  .welcome-skip {
+    align-self: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-mark {
+    animation: none;
+    transform: rotate(var(--welcome-rot));
+    opacity: 1;
   }
 }

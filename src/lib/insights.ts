@@ -252,3 +252,8 @@ export function dsaProblemsSolvedAllTime(state: AppState): number {
   }
   return n
 }
+
+/** Completed application blocks in session history (not sheet row totals). */
+export function appsBlocksCompletedAllTime(state: AppState): number {
+  return completedSessions(state).filter((s) => s.kind === 'apps-block').length
+}

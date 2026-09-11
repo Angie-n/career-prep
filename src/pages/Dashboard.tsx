@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StreakCalendar } from '../components/StreakCalendar'
 import { CERB, cerbMood, type CerbMood } from '../lib/cerb'
-import { dsaProblemsSolvedAllTime, formatTotalMinutes, minutesAllTime, minutesToday, neglectedCategories, promptsAnsweredAllTime, sessionsOn, todayGoalProgressPct } from '../lib/insights'
+import { dsaProblemsSolvedAllTime, appsBlocksCompletedAllTime, formatTotalMinutes, minutesAllTime, minutesToday, neglectedCategories, promptsAnsweredAllTime, sessionsOn, todayGoalProgressPct } from '../lib/insights'
 import { todayKey } from '../lib/ids'
 import { activeSessionPath, buildSession, isPhasePaused, startHref } from '../lib/sessionPlan'
 import { deleteSessionMedia } from '../lib/storage'
-import { useLifetimeLoggedStats } from '../lib/useLifetimeLoggedStats'
 import {
   CATEGORIES,
   CATEGORY_BY_KIND,
@@ -118,10 +117,9 @@ export function Dashboard() {
   const running = state.sessions.some((s) => s.inProgress && !isPhasePaused(s))
   const now = useProgressClock(running, liveKey)
   const mins = minutesToday(state, today, now)
-  const logged = useLifetimeLoggedStats(state.sheets)
-  const hasDsaTrackers = state.sheets.dsa.some((s) => s.url.trim())
-  const dsaSolved = hasDsaTrackers ? logged.dsaProblemsSolved : dsaProblemsSolvedAllTime(state)
+  const dsaSolved = dsaProblemsSolvedAllTime(state)
   const promptsAnswered = promptsAnsweredAllTime(state)
+  const appsBlocks = appsBlocksCompletedAllTime(state)
   const lifetimeMins = minutesAllTime(state)
   const neglected = neglectedCategories(state)
   const weak = neglected[0] ?? 'communication'
@@ -364,16 +362,16 @@ export function Dashboard() {
             <div className="today-board-head">
               <h2>Total Progress</h2>
             </div>
-            <div className="today-stats" aria-busy={logged.loading || undefined}>
+            <div className="today-stats">
               {CATEGORIES.map((c) => {
                 const count =
                   c === 'applications'
-                    ? logged.applicationsSubmitted
+                    ? appsBlocks
                     : c === 'dsa'
                       ? dsaSolved
                       : promptsAnswered
                 const countLabel =
-                  c === 'applications' ? 'Submitted' : c === 'dsa' ? 'Problems solved' : 'Prompts answered'
+                  c === 'applications' ? 'Blocks done' : c === 'dsa' ? 'Problems solved' : 'Prompts answered'
                 const time = formatTotalMinutes(lifetimeMins[c])
                 const icon = c === 'applications' ? 'apps' : c === 'dsa' ? 'dsa' : 'prompts'
                 return (

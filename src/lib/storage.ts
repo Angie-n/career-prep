@@ -196,6 +196,11 @@ function emptyState(): AppState {
   }
 }
 
+/** Fresh studio document (defaults only). Used after sign-out wipe. */
+export function emptyAppState(): AppState {
+  return emptyState()
+}
+
 /** Keep the newest in-progress session per live slot; drop older duplicates. */
 export function dedupeInProgressSessions(sessions: PracticeSession[]): PracticeSession[] {
   const keep = new Set<string>()
@@ -401,4 +406,25 @@ export async function deleteSheetCsv(id: string): Promise<void> {
     tx.onerror = () => reject(tx.error)
   })
   db.close()
+}
+
+/** Clear on-device media caches (audio + sheet CSV). Does not touch D1. */
+export async function clearLocalDeviceCaches(): Promise<void> {
+  const clearStore = (open: () => Promise<IDBDatabase>, store: string) =>
+    open().then(
+      (db) =>
+        new Promise<void>((resolve, reject) => {
+          const tx = db.transaction(store, 'readwrite')
+          tx.objectStore(store).clear()
+          tx.oncomplete = () => {
+            db.close()
+            resolve()
+          }
+          tx.onerror = () => {
+            db.close()
+            reject(tx.error)
+          }
+        }),
+    )
+  await Promise.all([clearStore(openDb, STORE), clearStore(openSheetDb, SHEET_STORE)])
 }

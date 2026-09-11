@@ -26,7 +26,7 @@ Experiences split into situation, what you noticed, constraints, options, decisi
 
 App state still lives in this browser (`localStorage` + `IndexedDB` for audio). When you **sign in**
 (Account), the full app JSON (except audio blobs / sheet CSV cache) syncs to Cloudflare D1
-(last-write-wins). Infra notes: [docs/infra-design-exploration.md](docs/infra-design-exploration.md).
+(last-write-wins). Infra notes: [docs/infra-design-exploration.md](docs/infra-design-exploration.md). Data layout & sync: [docs/data-model.md](docs/data-model.md).
 
 ## Run
 

@@ -6,6 +6,15 @@ const ID_TOKEN_KEY = 'studio:google-id-token'
 
 type CredentialResponse = { credential?: string; error?: string }
 
+export type GoogleButtonOptions = {
+  theme?: 'outline' | 'filled_blue' | 'filled_black'
+  size?: 'large' | 'medium' | 'small'
+  text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin'
+  shape?: 'rectangular' | 'pill' | 'circle' | 'square'
+  logo_alignment?: 'left' | 'center'
+  width?: number
+}
+
 type IdApi = {
   initialize: (cfg: {
     client_id: string
@@ -14,6 +23,7 @@ type IdApi = {
     cancel_on_tap_outside?: boolean
   }) => void
   prompt: (momentListener?: (n: { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean }) => void) => void
+  renderButton: (parent: HTMLElement, options: GoogleButtonOptions) => void
   disableAutoSelect: () => void
 }
 
@@ -64,6 +74,59 @@ async function loadIdApi(): Promise<IdApi> {
   return id
 }
 
+function storeIdToken(credential: string) {
+  idToken = credential
+  sessionStorage.setItem(ID_TOKEN_KEY, idToken)
+  notify()
+}
+
+function initIdClient(id: IdApi, clientId: string, onCredential: (credential: string) => void, onError?: (message: string) => void) {
+  id.initialize({
+    client_id: clientId,
+    callback: (resp) => {
+      if (!resp.credential) {
+        onError?.(resp.error || 'Google sign-in was cancelled.')
+        return
+      }
+      onCredential(resp.credential)
+    },
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  })
+}
+
+/** Official Google Sign-In button (GIS `renderButton`). Cleanup clears the host element. */
+export async function mountGoogleSignInButton(
+  parent: HTMLElement,
+  options: GoogleButtonOptions & { onError?: (message: string) => void } = {},
+): Promise<() => void> {
+  const cid = appGoogleClientId()
+  if (!cid) {
+    throw new Error('Google sign-in isn’t configured. Set VITE_GOOGLE_CLIENT_ID in .env.local.')
+  }
+  const { onError, ...button } = options
+  const id = await loadIdApi()
+  initIdClient(id, cid, storeIdToken, onError)
+  const token = {}
+  ;(parent as HTMLElement & { __gsiMount?: object }).__gsiMount = token
+  parent.replaceChildren()
+  id.renderButton(parent, {
+    theme: 'outline',
+    size: 'large',
+    text: 'signin_with',
+    shape: 'rectangular',
+    // Omit width so GIS sizes to content — stretching makes the G/label look broken.
+    ...button,
+  })
+  return () => {
+    const host = parent as HTMLElement & { __gsiMount?: object }
+    // Ignore stale disposers from React Strict Mode / overlapping mounts.
+    if (host.__gsiMount !== token) return
+    host.replaceChildren()
+    delete host.__gsiMount
+  }
+}
+
 export async function signInApp(): Promise<string> {
   const cid = appGoogleClientId()
   if (!cid) {
@@ -71,21 +134,15 @@ export async function signInApp(): Promise<string> {
   }
   const id = await loadIdApi()
   return new Promise((resolve, reject) => {
-    id.initialize({
-      client_id: cid,
-      callback: (resp) => {
-        if (!resp.credential) {
-          reject(new Error(resp.error || 'Google sign-in was cancelled.'))
-          return
-        }
-        idToken = resp.credential
-        sessionStorage.setItem(ID_TOKEN_KEY, idToken)
-        notify()
-        resolve(idToken)
+    initIdClient(
+      id,
+      cid,
+      (credential) => {
+        storeIdToken(credential)
+        resolve(credential)
       },
-      auto_select: false,
-      cancel_on_tap_outside: true,
-    })
+      (message) => reject(new Error(message)),
+    )
     id.prompt((notification) => {
       if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
         reject(new Error('Google sign-in was dismissed. Try again, or allow prompts for this site.'))

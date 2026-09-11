@@ -49,6 +49,10 @@ export function setLocalUpdatedAt(iso: string) {
   localStorage.setItem(LOCAL_UPDATED_KEY, iso)
 }
 
+export function clearLocalUpdatedAt() {
+  localStorage.removeItem(LOCAL_UPDATED_KEY)
+}
+
 function statePayload(state: AppState): string {
   return JSON.stringify(state)
 }
@@ -96,7 +100,7 @@ export async function reconcileOnSignIn(local: AppState): Promise<AppState | nul
       return remote.state
     }
 
-    const updatedAt = bumpLocalUpdatedAt(localAt || new Date().toISOString())
+    const updatedAt = getLocalUpdatedAt() || bumpLocalUpdatedAt()
     const savedAt = await pushRemoteState(local, updatedAt)
     setLocalUpdatedAt(savedAt)
     setStatus({ kind: 'synced', at: savedAt })
@@ -117,7 +121,7 @@ export function schedulePush(state: AppState) {
       if (gen !== pushGeneration || !isAppSignedIn() || suppressPush) return
       setStatus({ kind: 'syncing', detail: 'Saving…' })
       try {
-        const updatedAt = bumpLocalUpdatedAt()
+        const updatedAt = getLocalUpdatedAt() || bumpLocalUpdatedAt()
         const savedAt = await pushRemoteState(state, updatedAt)
         if (gen !== pushGeneration) return
         setLocalUpdatedAt(savedAt)

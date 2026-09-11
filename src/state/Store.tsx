@@ -1,6 +1,8 @@
 import { createContext, createElement, useContext, useMemo, useReducer, useEffect, useRef, type ReactNode } from 'react'
 import {
   beginRemoteHydrate,
+  bumpLocalUpdatedAt,
+  clearLocalUpdatedAt,
   endRemoteHydrate,
   reconcileOnSignIn,
   resetSyncStatus,
@@ -11,7 +13,8 @@ import { uid } from '../lib/ids'
 import { withUpdatedMaxStreaks } from '../lib/insights'
 import { SEED_QUESTIONS } from '../lib/seedQuestions'
 import { minutesByCategory } from '../lib/sessionPlan'
-import { loadState, saveState } from '../lib/storage'
+import { clearLocalDeviceCaches, emptyAppState, loadState, saveState } from '../lib/storage'
+import { clearEnteredWorkspace } from '../lib/workspaceEntry'
 import { BEHAVIORAL_CATEGORY_ID, CATEGORY_BY_KIND, emptyStory, liveSlotKey, sameLiveSlot } from '../lib/types'
 import type {
   AppState,
@@ -295,6 +298,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       endRemoteHydrate()
       return
     }
+    // Advance local clock on edit so Case B4 does not hydrate over unpushed work.
+    bumpLocalUpdatedAt()
     schedulePush(state)
   }, [state])
 
@@ -320,7 +325,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void runReconcile()
     return subscribeAppAuth(() => {
       if (!isAppSignedIn()) {
+        // Wipe local studio so signed-out UI is empty; do not push empty doc to D1.
+        beginRemoteHydrate()
+        skipNextPushRef.current = true
+        clearLocalUpdatedAt()
+        clearEnteredWorkspace()
         resetSyncStatus()
+        dispatch({ type: 'replace-state', state: emptyAppState() })
+        void clearLocalDeviceCaches().catch(() => {
+          /* best-effort */
+        })
         return
       }
       void runReconcile()

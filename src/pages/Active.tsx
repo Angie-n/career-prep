@@ -89,16 +89,7 @@ export function Active() {
         <p className="kicker">Active Sessions</p>
         <h1>Nothing live</h1>
         <p className="lead">
-          Start a block from Dashboard or a category home — the studio lives here while you work.
-        </p>
-        <p className="muted" style={{ marginTop: 12 }}>
-          <Link to="/">Dashboard</Link>
-          {' · '}
-          <Link to="/applications">Applications</Link>
-          {' · '}
-          <Link to="/practice">Communication</Link>
-          {' · '}
-          <Link to="/dsa">Data Structures and Algorithms</Link>
+          In-progress sessions to be resumed will show up here.
         </p>
       </section>
     </div>

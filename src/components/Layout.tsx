@@ -164,7 +164,6 @@ export function Layout() {
             ))}
           </div>
         </nav>
-        <div className="nav-foot">Start. Speak. Don’t drift.</div>
       </aside>
       <main className="main">
         <div className="main-inner">
