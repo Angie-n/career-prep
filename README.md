@@ -9,6 +9,8 @@ This is not a task manager. The home screen answers four questions:
 - What have I been neglecting?
 - Am I actually showing up?
 
+> **Status:**  Actively used and iterated on as a personal prototype. Product direction and workflows are still evolving based on hands-on use, so the implementation is intentionally optimized for rapid experimentation at this stage. Use at your own risk!
+
 ## Practice loops
 
 - **Interview drill (50 min)** — 20 min draft (bullets, not a script) → 10 min deliver with the draft hidden → 20 min of rapid-fire unexpected prompts (think, then speak).
