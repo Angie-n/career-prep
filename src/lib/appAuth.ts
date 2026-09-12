@@ -1,4 +1,4 @@
-/** App identity (Google ID token) — separate from Sheets access-token flow in googleAuth.ts */
+/** App identity (Google ID token) for sign-in and cloud sync. */
 
 const CLIENT_KEY = 'studio:google-client-id'
 const SCRIPT = 'https://accounts.google.com/gsi/client'
@@ -25,6 +25,12 @@ type IdApi = {
   prompt: (momentListener?: (n: { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean }) => void) => void
   renderButton: (parent: HTMLElement, options: GoogleButtonOptions) => void
   disableAutoSelect: () => void
+}
+
+declare global {
+  interface Window {
+    google?: { accounts: { id: IdApi } }
+  }
 }
 
 let idToken: string | null =

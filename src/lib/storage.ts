@@ -3,14 +3,12 @@ import {
   DEFAULT_DURATIONS,
   DEFAULT_GOALS,
   DEFAULT_MAX_STREAKS,
-  DEFAULT_SHEETS,
   clampMinutes,
   liveSlotKey,
   normalizeReflection,
   type AppState,
   type DailyGoals,
   type MaxStreaks,
-  type NamedSheet,
   type PracticeSession,
   type PromptCategory,
   type Question,
@@ -31,7 +29,6 @@ function migrateGoals(raw: Partial<DailyGoals> | undefined): DailyGoals {
   return {
     applications: Number(raw?.applications) || DEFAULT_GOALS.applications,
     communication: Number(raw?.communication) || DEFAULT_GOALS.communication,
-    dsa: Number(raw?.dsa) || DEFAULT_GOALS.dsa,
   }
 }
 
@@ -39,7 +36,6 @@ function migrateMaxStreaks(raw: Partial<MaxStreaks> | undefined): MaxStreaks {
   return {
     applications: Math.max(0, Math.floor(Number(raw?.applications) || 0)),
     communication: Math.max(0, Math.floor(Number(raw?.communication) || 0)),
-    dsa: Math.max(0, Math.floor(Number(raw?.dsa) || 0)),
   }
 }
 
@@ -49,7 +45,6 @@ function migrateDurations(raw: Partial<SessionDurations> | undefined): SessionDu
     'comm-deliver': clampMinutes(Number(raw?.['comm-deliver']), DEFAULT_DURATIONS['comm-deliver']),
     'comm-cold': clampMinutes(Number(raw?.['comm-cold']), DEFAULT_DURATIONS['comm-cold']),
     'apps-block': clampMinutes(Number(raw?.['apps-block']), DEFAULT_DURATIONS['apps-block']),
-    'dsa-block': clampMinutes(Number(raw?.['dsa-block']), DEFAULT_DURATIONS['dsa-block']),
   }
 }
 
@@ -159,26 +154,6 @@ function migrateStories(raw: unknown): Story[] {
     .filter((s) => s.id)
 }
 
-function migrateDsaSheets(raw: unknown): NamedSheet[] {
-  if (Array.isArray(raw)) {
-    const list = raw.map((item, i) => {
-      const s = item as Partial<NamedSheet>
-      return {
-        id: String(s.id || `dsa-${i + 1}`),
-        name: String(s.name || `Tracker ${i + 1}`),
-        url: String(s.url || ''),
-        importedAt: s.importedAt,
-      }
-    })
-    return list.length ? list : DEFAULT_SHEETS.dsa.map((s) => ({ ...s }))
-  }
-  if (raw && typeof raw === 'object' && 'url' in raw) {
-    const url = String((raw as { url?: string }).url || '')
-    return [{ id: 'dsa-1', name: 'Tracker 1', url }]
-  }
-  return DEFAULT_SHEETS.dsa.map((s) => ({ ...s }))
-}
-
 function emptyState(): AppState {
   const promptCategories = [{ ...SEED_BEHAVIORAL_CATEGORY }]
   return {
@@ -192,10 +167,6 @@ function emptyState(): AppState {
     goals: { ...DEFAULT_GOALS },
     maxStreaks: { ...DEFAULT_MAX_STREAKS },
     durations: { ...DEFAULT_DURATIONS },
-    sheets: {
-      applications: { url: '' },
-      dsa: DEFAULT_SHEETS.dsa.map((s) => ({ ...s })),
-    },
     activeSessionId: null,
   }
 }
@@ -317,13 +288,6 @@ export function normalizeState(input: unknown): AppState {
     goals: migrateGoals(parsed.goals),
     maxStreaks: migrateMaxStreaks(parsed.maxStreaks),
     durations: migrateDurations(parsed.durations),
-    sheets: {
-      applications: {
-        url: parsed.sheets?.applications?.url ?? '',
-        importedAt: parsed.sheets?.applications?.importedAt,
-      },
-      dsa: migrateDsaSheets(parsed.sheets?.dsa),
-    },
     activeSessionId,
   }
   return { ...base, maxStreaks: withUpdatedMaxStreaks(base) }
@@ -408,55 +372,7 @@ export async function deleteSessionsMedia(sessions: PracticeSession[]): Promise<
   await Promise.all(sessions.map((s) => deleteSessionMedia(s)))
 }
 
-const SHEET_DB = 'studio-sheet-csv'
-const SHEET_STORE = 'csv'
-
-function openSheetDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(SHEET_DB, 1)
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(SHEET_STORE)
-    }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
-}
-
-export async function saveSheetCsv(id: string, csv: string): Promise<void> {
-  const db = await openSheetDb()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(SHEET_STORE, 'readwrite')
-    tx.objectStore(SHEET_STORE).put(csv, id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-  db.close()
-}
-
-export async function getSheetCsv(id: string): Promise<string | undefined> {
-  const db = await openSheetDb()
-  const csv = await new Promise<string | undefined>((resolve, reject) => {
-    const tx = db.transaction(SHEET_STORE, 'readonly')
-    const req = tx.objectStore(SHEET_STORE).get(id)
-    req.onsuccess = () => resolve(req.result as string | undefined)
-    req.onerror = () => reject(req.error)
-  })
-  db.close()
-  return csv
-}
-
-export async function deleteSheetCsv(id: string): Promise<void> {
-  const db = await openSheetDb()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(SHEET_STORE, 'readwrite')
-    tx.objectStore(SHEET_STORE).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-  db.close()
-}
-
-/** Clear on-device media caches (audio + sheet CSV). Does not touch D1. */
+/** Clear on-device media caches (audio). Does not touch D1. */
 export async function clearLocalDeviceCaches(): Promise<void> {
   const clearStore = (open: () => Promise<IDBDatabase>, store: string) =>
     open().then(
@@ -474,5 +390,5 @@ export async function clearLocalDeviceCaches(): Promise<void> {
           }
         }),
     )
-  await Promise.all([clearStore(openDb, STORE), clearStore(openSheetDb, SHEET_STORE)])
+  await clearStore(openDb, STORE)
 }

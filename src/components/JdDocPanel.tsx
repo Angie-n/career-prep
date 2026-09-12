@@ -190,13 +190,13 @@ export function JdDocPanel({
     <div className="apps-jd-workspace">
       <div className="apps-session-columns">
         <div className="apps-session-col apps-session-doc-col">
-          <div className="dsa-col-head apps-doc-head">
+          <div className="panel-col-head apps-doc-head">
             <div>
-              <h2 className="dsa-col-heading">Job description</h2>
+              <h2 className="panel-col-heading">Job description</h2>
               {readOnly ? (
-                <p className="muted dsa-log-hint">Highlights and comments from this block.</p>
+                <p className="muted panel-log-hint">Highlights and comments from this block.</p>
               ) : showEditor ? (
-                <p className="muted dsa-log-hint">
+                <p className="muted panel-log-hint">
                   {hasSavedText
                     ? 'Edit the posting text. Existing comments stay attached when the quote still matches.'
                     : 'Paste the posting, then highlight lines and leave comments in the margin.'}
@@ -293,12 +293,12 @@ export function JdDocPanel({
         </div>
 
         <div className="apps-session-col apps-session-comments-col">
-          <div className="dsa-col-head apps-comments-head">
+          <div className="panel-col-head apps-comments-head">
             <div>
-              <h2 className="dsa-col-heading">Comments</h2>
+              <h2 className="panel-col-heading">Comments</h2>
               {!readOnly ? (
                 <>
-                  <p className="muted dsa-log-hint">
+                  <p className="muted panel-log-hint">
                     Select text and right click to add comment
                   </p>
                   <p className="apps-comments-prompt">

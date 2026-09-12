@@ -9,7 +9,6 @@ const links = [
   { to: '/active', label: 'Active Sessions', end: false },
   { to: '/applications', label: 'Applications', end: false },
   { to: '/practice', label: 'Communication', end: false },
-  { to: '/dsa', label: 'Data Structures and Algorithms', end: false },
   { to: '/goals', label: 'Goals', end: true },
   { to: '/account', label: 'Account', end: true },
 ]
@@ -26,7 +25,6 @@ function modeFor(
     return opts.activeKind ? CATEGORY_BY_KIND[opts.activeKind] : null
   }
   if (path.startsWith('/applications')) return 'applications'
-  if (path.startsWith('/dsa')) return 'dsa'
   if (path.startsWith('/practice')) return 'communication'
   return null
 }

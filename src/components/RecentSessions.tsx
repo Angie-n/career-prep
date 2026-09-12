@@ -14,11 +14,6 @@ function sessionListMeta(s: PracticeSession): string {
       n === 0 ? 'No applications' : `${n} application${n === 1 ? '' : 's'}`
     return [when, apps].filter(Boolean).join(' · ')
   }
-  if (s.kind === 'dsa-block') {
-    const n = s.dsaRetrieved?.length ?? 0
-    const rows = n === 0 ? 'No tracker rows' : `${n} tracker row${n === 1 ? '' : 's'}`
-    return [when, rows].filter(Boolean).join(' · ')
-  }
   const answered = s.answers.length
   const answers =
     answered === 0 ? 'No answers' : `${answered} answer${answered === 1 ? '' : 's'}`

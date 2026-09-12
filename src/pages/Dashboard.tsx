@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StreakCalendar } from '../components/StreakCalendar'
 import { CERB, cerbMood, type CerbMood } from '../lib/cerb'
-import { dsaProblemsSolvedAllTime, applicationsSubmittedAllTime, formatTotalMinutes, minutesAllTime, minutesToday, neglectedCategories, promptsAnsweredAllTime, sessionsOn, todayGoalProgressPct } from '../lib/insights'
+import { applicationsSubmittedAllTime, formatTotalMinutes, minutesAllTime, minutesToday, neglectedCategories, promptsAnsweredAllTime, sessionsOn, todayGoalProgressPct } from '../lib/insights'
 import { todayKey } from '../lib/ids'
 import { activeSessionPath, buildSession, isPhasePaused, startHref } from '../lib/sessionPlan'
 import { deleteSessionMedia } from '../lib/storage'
@@ -20,13 +20,11 @@ import { inProgressForKind, useInProgressSessions, useStore } from '../state/Sto
 
 function recommend(neglected: Category): SessionKind {
   if (neglected === 'applications') return 'apps-block'
-  if (neglected === 'dsa') return 'dsa-block'
   return 'comm-cold'
 }
 
 function hrefFor(category: Category) {
   if (category === 'applications') return '/applications'
-  if (category === 'dsa') return '/dsa'
   return '/practice'
 }
 
@@ -66,7 +64,7 @@ function Chevron({ dir }: { dir: 'prev' | 'next' }) {
   )
 }
 
-function StatIcon({ kind }: { kind: 'apps' | 'dsa' | 'prompts' }) {
+function StatIcon({ kind }: { kind: 'apps' | 'prompts' }) {
   if (kind === 'apps') {
     return (
       <svg className="today-stat-icon" viewBox="0 0 80 80" aria-hidden="true">
@@ -75,24 +73,6 @@ function StatIcon({ kind }: { kind: 'apps' | 'dsa' | 'prompts' }) {
         <path d="M24 28h20M24 38h16M24 48h12" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
         <circle cx="58" cy="54" r="14" fill="currentColor" opacity="0.18" />
         <path d="M58 47v14M51 54h14" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-      </svg>
-    )
-  }
-  if (kind === 'dsa') {
-    return (
-      <svg className="today-stat-icon" viewBox="0 0 80 80" aria-hidden="true">
-        <rect x="12" y="18" width="56" height="44" rx="10" fill="none" stroke="currentColor" strokeWidth="3.5" />
-        <path
-          d="M28 44l8 8 16-18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="26" cy="30" r="3" fill="currentColor" />
-        <circle cx="40" cy="30" r="3" fill="currentColor" />
-        <circle cx="54" cy="30" r="3" fill="currentColor" />
       </svg>
     )
   }
@@ -119,7 +99,6 @@ export function Dashboard() {
   const running = state.sessions.some((s) => s.inProgress && !isPhasePaused(s))
   const now = useProgressClock(live.length > 0, running, liveKey)
   const mins = minutesToday(state, today, now)
-  const dsaSolved = dsaProblemsSolvedAllTime(state)
   const promptsAnswered = promptsAnsweredAllTime(state)
   const appsSubmitted = applicationsSubmittedAllTime(state)
   const lifetimeMins = minutesAllTime(state, now)
@@ -366,16 +345,10 @@ export function Dashboard() {
             </div>
             <div className="today-stats">
               {CATEGORIES.map((c) => {
-                const count =
-                  c === 'applications'
-                    ? appsSubmitted
-                    : c === 'dsa'
-                      ? dsaSolved
-                      : promptsAnswered
-                const countLabel =
-                  c === 'applications' ? 'Applications submitted' : c === 'dsa' ? 'Problems solved' : 'Prompts answered'
+                const count = c === 'applications' ? appsSubmitted : promptsAnswered
+                const countLabel = c === 'applications' ? 'Applications submitted' : 'Prompts answered'
                 const time = formatTotalMinutes(lifetimeMins[c])
-                const icon = c === 'applications' ? 'apps' : c === 'dsa' ? 'dsa' : 'prompts'
+                const icon = c === 'applications' ? 'apps' : 'prompts'
                 return (
                   <Link
                     key={c}

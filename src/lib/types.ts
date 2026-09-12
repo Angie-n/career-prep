@@ -1,17 +1,15 @@
-export const CATEGORIES = ['applications', 'communication', 'dsa'] as const
+export const CATEGORIES = ['applications', 'communication'] as const
 
 export type Category = (typeof CATEGORIES)[number]
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   applications: 'Applications',
   communication: 'Communication',
-  dsa: 'Data Structures and Algorithms',
 }
 
 export const CATEGORY_BLURB: Record<Category, string> = {
   applications: 'Track roles and companies. Mark up postings, status, and prep notes.',
   communication: 'Say it out loud. Draft, deliver, or go cold.',
-  dsa: 'Reps under the clock. Problems stay on your tracker.',
 }
 
 export type Story = {
@@ -22,7 +20,7 @@ export type Story = {
   updatedAt: string
 }
 
-/** Groups Communication prompts (e.g. Behavioral, a resume project). Not the apps/comm/dsa track. */
+/** Groups Communication prompts (e.g. Behavioral, a resume project). Not the apps/comm track. */
 export type PromptCategory = {
   id: string
   title: string
@@ -47,7 +45,6 @@ export type SessionKind =
   | 'comm-deliver'
   | 'comm-cold'
   | 'apps-block'
-  | 'dsa-block'
   | 'interview-drill'
   | 'cold-burst'
   | 'story-retrieval'
@@ -60,7 +57,6 @@ export const CATEGORY_BY_KIND: Record<SessionKind, Category> = {
   'comm-deliver': 'communication',
   'comm-cold': 'communication',
   'apps-block': 'applications',
-  'dsa-block': 'dsa',
   'interview-drill': 'communication',
   'cold-burst': 'communication',
   'story-retrieval': 'communication',
@@ -68,7 +64,7 @@ export const CATEGORY_BY_KIND: Record<SessionKind, Category> = {
 }
 
 /**
- * Concurrent live sessions: apps/dsa stay one-per-category.
+ * Concurrent live sessions: applications stays one-per-category.
  * Communication allows one live session per kind (draft + rapid fire can both run).
  */
 export function liveSlotKey(kind: SessionKind): string {
@@ -104,22 +100,6 @@ export type SessionAnswer = {
   audioId?: string
   /** Set when a take was recorded; older sessions may omit (treat as audio). */
   mediaKind?: MediaKind
-}
-
-export type DsaRetrievedItem = {
-  /** Stable id for UI edits during a session. */
-  id?: string
-  problem: string
-  difficulty: string
-  topics: string
-  notes: string
-  /** Tracker this row was logged to / retrieved from. */
-  sheetId?: string
-  sheetName?: string
-  /** Whether the user marked this problem as completed in the session. */
-  solved?: boolean
-  /** Time spent on this problem while solving the current session (seconds). */
-  timeSec?: number
 }
 
 /** Comment anchored to a span of a pasted job description (character offsets). */
@@ -271,7 +251,7 @@ export type Reflection = {
   wentWell: string
   couldImprove: string
   additionalNotes: string
-  /** Freeform takeaways (DSA / communication, and legacy apps). */
+  /** Freeform takeaways (communication, and legacy apps). */
   note?: string
   /** Apps reflection: what got done this session. */
   gotDone?: string
@@ -286,7 +266,6 @@ export type PracticeSession = {
   completedAt?: string
   phases: PlannedPhase[]
   answers: SessionAnswer[]
-  dsaRetrieved?: DsaRetrievedItem[]
   /**
    * Applications opened in this apps-block (ids into AppState.applications).
    * Prefer this over legacy `appsJobDoc`.
@@ -315,24 +294,11 @@ export const DURATION_KINDS = [
   'comm-deliver',
   'comm-cold',
   'apps-block',
-  'dsa-block',
 ] as const
 
 export type DurationKind = (typeof DURATION_KINDS)[number]
 
 export type SessionDurations = Record<DurationKind, number>
-
-export type SheetLink = {
-  url: string
-  importedAt?: string
-}
-
-export type NamedSheet = {
-  id: string
-  name: string
-  url: string
-  importedAt?: string
-}
 
 export type AppState = {
   stories: Story[]
@@ -349,20 +315,17 @@ export type AppState = {
   goals: DailyGoals
   maxStreaks: MaxStreaks
   durations: SessionDurations
-  sheets: { applications: SheetLink; dsa: NamedSheet[] }
   activeSessionId: string | null
 }
 
 export const DEFAULT_GOALS: DailyGoals = {
   applications: 30,
   communication: 40,
-  dsa: 45,
 }
 
 export const DEFAULT_MAX_STREAKS: MaxStreaks = {
   applications: 0,
   communication: 0,
-  dsa: 0,
 }
 
 export const DEFAULT_DURATIONS: SessionDurations = {
@@ -370,12 +333,6 @@ export const DEFAULT_DURATIONS: SessionDurations = {
   'comm-deliver': 10,
   'comm-cold': 20,
   'apps-block': 25,
-  'dsa-block': 45,
-}
-
-export const DEFAULT_SHEETS: AppState['sheets'] = {
-  applications: { url: '' },
-  dsa: [{ id: 'dsa-1', name: 'Tracker 1', url: '' }],
 }
 
 export function clampMinutes(n: number, fallback: number): number {
@@ -413,11 +370,6 @@ export const SESSION_META: Record<
     title: 'Apply Yourself',
     minutes: 25,
     blurb: 'Work one or more applications — mark up postings, track status, and prep notes.',
-  },
-  'dsa-block': {
-    title: 'Problem Solve',
-    minutes: 45,
-    blurb: 'Pick problems. Solve under the clock.',
   },
   'interview-drill': {
     title: 'Interview drill (legacy)',

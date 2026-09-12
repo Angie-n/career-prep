@@ -45,7 +45,6 @@ type Action =
   | { type: 'sync-max-streaks' }
   | { type: 'set-durations'; durations: AppState['durations'] }
   | { type: 'set-drill-prompt-categories'; ids: string[] }
-  | { type: 'set-sheets'; sheets: AppState['sheets'] }
   | { type: 'start-session'; session: PracticeSession }
   | { type: 'focus-session'; id: string }
   | { type: 'patch-session'; session: PracticeSession }
@@ -198,8 +197,7 @@ function reducer(state: AppState, action: Action): AppState {
       const maxStreaks = withUpdatedMaxStreaks(state)
       if (
         maxStreaks.applications === state.maxStreaks.applications &&
-        maxStreaks.communication === state.maxStreaks.communication &&
-        maxStreaks.dsa === state.maxStreaks.dsa
+        maxStreaks.communication === state.maxStreaks.communication
       ) {
         return state
       }
@@ -214,8 +212,6 @@ function reducer(state: AppState, action: Action): AppState {
         drillPromptCategoryIds: action.ids.filter((id) => valid.has(id)),
       }
     }
-    case 'set-sheets':
-      return { ...state, sheets: action.sheets }
     case 'start-session': {
       const conflict = state.sessions.find(
         (s) =>

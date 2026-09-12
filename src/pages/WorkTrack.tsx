@@ -1,32 +1,17 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { CategoryGlance } from '../components/CategoryGlance'
 import { CategorySubnav } from '../components/CategorySubnav'
 import { MinutesPicker } from '../components/MinutesPicker'
-import { SheetLog } from '../components/SheetLog'
-import { uid } from '../lib/ids'
 import { activeSessionPath, buildSession } from '../lib/sessionPlan'
-import { retrieveDsaFromTrackers } from '../lib/retrieveDsa'
-import { deleteSessionMedia, deleteSheetCsv } from '../lib/storage'
-import {
-  CATEGORY_LABEL,
-  SESSION_META,
-  clampMinutes,
-  type Category,
-  type NamedSheet,
-  type SessionKind,
-} from '../lib/types'
+import { deleteSessionMedia } from '../lib/storage'
+import { CATEGORY_LABEL, SESSION_META, clampMinutes } from '../lib/types'
 import { useInProgressForCategory, useStore } from '../state/Store'
 
-export function WorkTrack({
-  category,
-  kind,
-  pane = 'home',
-}: {
-  category: Extract<Category, 'applications' | 'dsa'>
-  kind: Extract<SessionKind, 'apps-block' | 'dsa-block'>
-  pane?: 'home' | 'tracker'
-}) {
+const category = 'applications' as const
+const kind = 'apps-block' as const
+
+export function WorkTrack() {
   const { state, dispatch } = useStore()
   const matchingActive = useInProgressForCategory(category)
   const navigate = useNavigate()
@@ -35,7 +20,6 @@ export function WorkTrack({
   const [note, setNote] = useState('')
   const [starting, setStarting] = useState(false)
   const meta = SESSION_META[kind]
-  const tracking = category === 'dsa' && pane === 'tracker'
 
   useEffect(() => {
     setMinutesLocal(goalMinutes)
@@ -57,15 +41,9 @@ export function WorkTrack({
     }
     setStarting(true)
     try {
-      const dsaRetrieved =
-        kind === 'dsa-block'
-          ? await retrieveDsaFromTrackers(state.sheets.dsa, note)
-          : undefined
-
       const session = buildSession(kind, state.customQuestions, {
         minutes,
         note,
-        dsaRetrieved,
         removedQuestionIds: state.removedQuestionIds,
       })
       dispatch({ type: 'start-session', session })
@@ -86,179 +64,57 @@ export function WorkTrack({
     <div className="stack">
       <div className="page-head">
         <p className="kicker">{CATEGORY_LABEL[category]}</p>
-        <h1>{tracking ? 'Tracker' : meta.title}</h1>
-        <p className="lead">
-          {tracking ? 'Named trackers for problems and notes. Stay sharp.' : meta.blurb}
-        </p>
+        <h1>{meta.title}</h1>
+        <p className="lead">{meta.blurb}</p>
       </div>
 
       <CategorySubnav category={category} />
 
-      {tracking ? (
-        <WorkTrackSheets />
-      ) : (
-        <>
-          <CategoryGlance category={category} />
-          <section className="card action start-card">
-            <div className="start-card-copy">
-              <h2>{meta.title}</h2>
-              <p className="muted">
-                {matchingActive
-                  ? 'Pick up where you left off.'
-                  : `This time counts only toward ${CATEGORY_LABEL[category].toLowerCase()}.`}
-              </p>
-            </div>
-            {!matchingActive ? (
-              <label className="field start-card-note">
-                What are you working on? (optional)
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder={category === 'applications' ? 'Company + role…' : 'Problem or topic…'}
-                />
-              </label>
-            ) : null}
-            {!matchingActive && category === 'applications' ? (
-              <p className="muted start-card-hint">
-                After you start, open one or more applications — paste JDs, set status, and add notes
-                and links.
-              </p>
-            ) : null}
-            <div className="start-card-actions">
-              {!matchingActive ? <MinutesPicker value={minutes} onChange={setMinutes} /> : null}
-              {matchingActive ? (
-                <>
-                  <button className="btn" type="button" onClick={() => void start()}>
-                    Resume
-                  </button>
-                  <button className="btn ghost" type="button" onClick={discard}>
-                    Discard
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => void start()}
-                  disabled={starting}
-                >
-                  {starting ? 'Loading…' : 'Start now'}
-                </button>
-              )}
-            </div>
-          </section>
-        </>
-      )}
-    </div>
-  )
-}
-
-function WorkTrackSheets() {
-  const { state, dispatch } = useStore()
-  const [searchParams] = useSearchParams()
-  const focusSourceId = searchParams.get('sourceId') ?? ''
-
-  const [dsaDrafts, setDsaDrafts] = useState<NamedSheet[]>(state.sheets.dsa)
-
-  useEffect(() => {
-    if (!focusSourceId.trim()) return
-    const scroll = () => {
-      const el = document.getElementById(`dsa-tracker-${focusSourceId}`)
-      if (!el) return
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-    scroll()
-    window.setTimeout(scroll, 0)
-  }, [focusSourceId])
-
-  function saveDsa() {
-    const next = dsaDrafts.map((s) => ({
-      ...s,
-      name: s.name.trim() || 'Tracker',
-      url: s.url.trim(),
-    }))
-    setDsaDrafts(next)
-    dispatch({
-      type: 'set-sheets',
-      sheets: { ...state.sheets, dsa: next },
-    })
-  }
-
-  return (
-    <div className="stack">
-      <div>
-        <p className="kicker">Spreadsheets</p>
-        <h2>Data Structures and Algorithms trackers</h2>
-        <p className="lead">
-          Name each tracker and paste its sheet URL. Same columns: Date, Problem, Difficulty, Topics,
-          Notes.
-        </p>
-      </div>
-      {dsaDrafts.map((sheet, i) => (
-        <section className="card stack" key={sheet.id} id={`dsa-tracker-${sheet.id}`}>
-          <p className="kicker">Tracker {i + 1}</p>
-          <label className="field">
-            Name
+      <CategoryGlance category={category} />
+      <section className="card action start-card">
+        <div className="start-card-copy">
+          <h2>{meta.title}</h2>
+          <p className="muted">
+            {matchingActive
+              ? 'Pick up where you left off.'
+              : `This time counts only toward ${CATEGORY_LABEL[category].toLowerCase()}.`}
+          </p>
+        </div>
+        {!matchingActive ? (
+          <label className="field start-card-note">
+            What are you working on? (optional)
             <input
               type="text"
-              value={sheet.name}
-              onChange={(e) =>
-                setDsaDrafts((list) =>
-                  list.map((s) => (s.id === sheet.id ? { ...s, name: e.target.value } : s)),
-                )
-              }
-              placeholder="NeetCode, Blind 75…"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Company + role…"
             />
           </label>
-          <label className="field">
-            Sheet URL
-            <input
-              type="text"
-              value={sheet.url}
-              onChange={(e) =>
-                setDsaDrafts((list) =>
-                  list.map((s) => (s.id === sheet.id ? { ...s, url: e.target.value } : s)),
-                )
-              }
-              placeholder="https://docs.google.com/spreadsheets/d/…"
-            />
-          </label>
-          <div className="row">
-            <button className="btn ghost" type="button" onClick={saveDsa}>
-              Save
-            </button>
-            {dsaDrafts.length > 1 ? (
-              <button
-                className="btn ghost"
-                type="button"
-                onClick={() => {
-                  const next = dsaDrafts.filter((s) => s.id !== sheet.id)
-                  setDsaDrafts(next)
-                  void deleteSheetCsv(sheet.id)
-                  dispatch({ type: 'set-sheets', sheets: { ...state.sheets, dsa: next } })
-                }}
-              >
-                Remove
+        ) : null}
+        {!matchingActive ? (
+          <p className="muted start-card-hint">
+            After you start, open one or more applications — paste JDs, set status, and add notes
+            and links.
+          </p>
+        ) : null}
+        <div className="start-card-actions">
+          {!matchingActive ? <MinutesPicker value={minutes} onChange={setMinutes} /> : null}
+          {matchingActive ? (
+            <>
+              <button className="btn" type="button" onClick={() => void start()}>
+                Resume
               </button>
-            ) : null}
-          </div>
-          <SheetLog url={state.sheets.dsa.find((s) => s.id === sheet.id)?.url ?? ''} kind="dsa" />
-        </section>
-      ))}
-      <div>
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={() => {
-            const next = [...dsaDrafts, { id: uid(), name: `Tracker ${dsaDrafts.length + 1}`, url: '' }]
-            setDsaDrafts(next)
-            dispatch({ type: 'set-sheets', sheets: { ...state.sheets, dsa: next } })
-          }}
-        >
-          Add another sheet
-        </button>
-      </div>
+              <button className="btn ghost" type="button" onClick={discard}>
+                Discard
+              </button>
+            </>
+          ) : (
+            <button className="btn" type="button" onClick={() => void start()} disabled={starting}>
+              {starting ? 'Loading…' : 'Start now'}
+            </button>
+          )}
+        </div>
+      </section>
     </div>
   )
 }
