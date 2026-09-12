@@ -24,21 +24,6 @@ function CategoryMark({ category }: { category: Category }) {
           <circle cx="58" cy="54" r="14" fill="currentColor" opacity="0.18" />
           <path d="M58 47v14M51 54h14" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
         </svg>
-      ) : category === 'dsa' ? (
-        <svg viewBox="0 0 80 80" aria-hidden="true">
-          <rect x="12" y="18" width="56" height="44" rx="10" fill="none" stroke="currentColor" strokeWidth="3.5" />
-          <path
-            d="M28 44l8 8 16-18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle cx="26" cy="30" r="3" fill="currentColor" />
-          <circle cx="40" cy="30" r="3" fill="currentColor" />
-          <circle cx="54" cy="30" r="3" fill="currentColor" />
-        </svg>
       ) : (
         <svg viewBox="0 0 80 80" aria-hidden="true">
           <path
@@ -107,7 +92,6 @@ export function WelcomeGate({ onEntered }: Props) {
           <div className="welcome-marks">
             <CategoryMark category="applications" />
             <CategoryMark category="communication" />
-            <CategoryMark category="dsa" />
           </div>
         </aside>
 
@@ -116,8 +100,8 @@ export function WelcomeGate({ onEntered }: Props) {
             <p className="kicker">Career Studio</p>
             <h1>Start practicing</h1>
             <p className="lead">
-              A focused space for interview prep — timed sessions for applications, behavioral stories,
-              and DSA, with goals and history so you keep showing up.
+              A focused space for interview prep — timed sessions for applications and behavioral
+              stories, with goals and history so you keep showing up.
             </p>
             <p className="muted">
               Sign in to sync your data across devices, or continue on this browser only.

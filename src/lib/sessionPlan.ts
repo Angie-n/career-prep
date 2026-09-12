@@ -4,7 +4,6 @@ import type {
   Category,
   PlannedPhase,
   PracticeSession,
-  DsaRetrievedItem,
   Question,
   SessionAnswer,
   SessionKind,
@@ -66,7 +65,6 @@ function finish(
   kind: SessionKind,
   phases: PlannedPhase[],
   extraAnswers: SessionAnswer[] = [],
-  dsaRetrieved?: DsaRetrievedItem[],
 ): PracticeSession {
   const answers: SessionAnswer[] = [...extraAnswers]
   const seen = new Set(answers.map((a) => a.questionId + (a.storyId ?? '')))
@@ -89,7 +87,6 @@ function finish(
     startedAt: now,
     phases,
     answers,
-    dsaRetrieved,
     appsApplicationIds: kind === 'apps-block' ? [] : undefined,
     appsActiveId: kind === 'apps-block' ? null : undefined,
     categoryMinutes: {},
@@ -143,7 +140,6 @@ export function buildSession(
     /** Speak phase length when Draft includes Talk-from-draft (2/2). */
     deliverMinutes?: number
     note?: string
-    dsaRetrieved?: DsaRetrievedItem[]
     removedQuestionIds?: string[]
     promptCategoryIds?: string[]
   },
@@ -208,8 +204,8 @@ export function buildSession(
     }
   }
 
-  if (kind === 'apps-block' || kind === 'dsa-block') {
-    const minutes = opts?.minutes ?? (kind === 'dsa-block' ? 45 : 25)
+  if (kind === 'apps-block') {
+    const minutes = opts?.minutes ?? 25
     phases.push({
       id: uid(),
       kind: 'block',
@@ -219,7 +215,7 @@ export function buildSession(
     })
   }
 
-  return finish(kind, phases, [], opts?.dsaRetrieved)
+  return finish(kind, phases)
 }
 
 export function minutesByCategory(session: PracticeSession, completedAt: string): Partial<Record<Category, number>> {
@@ -238,13 +234,11 @@ export function activeSessionPath(sessionId: string): string {
 
 export function startHref(kind: SessionKind): string {
   if (kind === 'apps-block') return '/applications'
-  if (kind === 'dsa-block') return '/dsa'
   return '/practice'
 }
 
 export function homeForCategory(category: Category): string {
   if (category === 'applications') return '/applications'
-  if (category === 'dsa') return '/dsa'
   return '/practice'
 }
 
@@ -254,7 +248,6 @@ export function homeForKind(kind: SessionKind): string {
 
 export function historyForCategory(category: Category): string {
   if (category === 'applications') return '/applications/history'
-  if (category === 'dsa') return '/dsa/history'
   return '/practice/history'
 }
 

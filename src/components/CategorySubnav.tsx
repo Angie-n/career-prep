@@ -16,13 +16,6 @@ function itemsFor(category: Category): Item[] {
       { to: '/applications/history', label: 'History' },
     ]
   }
-  if (category === 'dsa') {
-    return [
-      { to: '/dsa', label: 'Home', end: true },
-      { to: '/dsa/history', label: 'History' },
-      { to: '/dsa/tracker', label: 'Tracker' },
-    ]
-  }
   return [
     { to: '/practice', label: 'Home', end: true },
     { to: '/practice/history', label: 'History' },

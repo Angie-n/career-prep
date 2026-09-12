@@ -13,7 +13,6 @@ import {
 const CATEGORY_QUERY: Record<string, Category> = {
   applications: 'applications',
   communication: 'communication',
-  dsa: 'dsa',
 }
 
 export function Active() {
@@ -25,7 +24,7 @@ export function Active() {
   const categoryParam = searchParams.get('category')
   const categoryFilter = categoryParam ? CATEGORY_QUERY[categoryParam] : undefined
 
-  // Deep-link /active?category=dsa → that category's studio when one is live.
+  // Deep-link /active?category=applications → that category's studio when one is live.
   useEffect(() => {
     if (sessionId || !categoryFilter) return
     const match = inProgressForCategory(state, categoryFilter)

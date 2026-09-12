@@ -111,24 +111,14 @@ p {
   --gold: #e85a24;
 }
 
-.app-shell.mode-dsa {
-  --ember: #2f9e94;
-  --ember-dim: rgba(47, 158, 148, 0.14);
-  --ember-wash: rgba(47, 158, 148, 0.12);
-  --ember-soft: rgba(47, 158, 148, 0.08);
-  --gold: #268078;
-}
-
 .app-shell.mode-applications .main,
-.app-shell.mode-communication .main,
-.app-shell.mode-dsa .main {
+.app-shell.mode-communication .main {
   background:
     linear-gradient(180deg, var(--ember-wash) 0%, color-mix(in srgb, var(--ember-wash) 45%, transparent) 120px, transparent 280px);
 }
 
 .app-shell.mode-applications .nav,
-.app-shell.mode-communication .nav,
-.app-shell.mode-dsa .nav {
+.app-shell.mode-communication .nav {
   border-right-color: transparent;
 }
 
@@ -146,14 +136,6 @@ p {
   --ember-wash: rgba(255, 106, 53, 0.11);
   --ember-soft: rgba(255, 106, 53, 0.07);
   --gold: #e85a24;
-}
-
-.cat-dsa {
-  --ember: #2f9e94;
-  --ember-dim: rgba(47, 158, 148, 0.14);
-  --ember-wash: rgba(47, 158, 148, 0.12);
-  --ember-soft: rgba(47, 158, 148, 0.08);
-  --gold: #268078;
 }
 
 .subnav {
@@ -2296,7 +2278,6 @@ a.card:focus-visible {
   background: transparent;
 }
 
-.main:has(.dsa-session-frame),
 .main:has(.apps-session-frame) {
   padding: 12px 16px 16px;
   display: flex;
@@ -2304,7 +2285,6 @@ a.card:focus-visible {
   min-height: 100dvh;
 }
 
-.main:has(.dsa-session-frame) .main-inner,
 .main:has(.apps-session-frame) .main-inner {
   max-width: none;
   width: 100%;
@@ -2312,59 +2292,6 @@ a.card:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.dsa-session-frame {
-  grid-template-rows: auto 1fr;
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-}
-
-.dsa-session-chrome {
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  margin: 0 -4px;
-  padding: 8px 4px 12px;
-  /* Opaque (blocks scroll-through) but painted like the page wash */
-  background-color: var(--bg);
-  background-image: linear-gradient(180deg, var(--ember-wash) 0%, color-mix(in srgb, var(--ember-wash) 45%, transparent) 120px, transparent 280px);
-  border-bottom: 1px solid color-mix(in srgb, var(--ember) 16%, var(--line));
-}
-
-.dsa-session-chrome .studio-top {
-  margin-bottom: 0;
-  padding-bottom: 10px;
-  border-bottom: 0;
-}
-
-.dsa-sticky-timer {
-  display: flex;
-  justify-content: center;
-  padding: 4px 0 2px;
-}
-
-.dsa-sticky-timer .timer-hero {
-  margin: 0;
-  max-width: 480px;
-  width: 100%;
-  padding: 0;
-}
-
-.dsa-sticky-timer .timer {
-  font-size: clamp(2.4rem, 6vw, 3.5rem);
-  letter-spacing: 0.03em;
-  line-height: 1;
-  color: var(--gold);
-}
-
-.dsa-sticky-timer .timer.over {
-  color: var(--gold);
-}
-
-.dsa-sticky-timer .timer-hero.is-paused .timer {
-  color: var(--muted);
 }
 
 .studio-top,
@@ -2407,12 +2334,6 @@ a.card:focus-visible {
   min-height: 120px;
 }
 
-/* DSA block session — two-column layout with teal accents */
-.dsa-session-frame .studio-top,
-.dsa-session-frame .studio-bot {
-  border-color: color-mix(in srgb, var(--ember) 18%, var(--line));
-}
-
 .studio-session-title {
   margin: 0;
   font-family: var(--serif);
@@ -2423,129 +2344,11 @@ a.card:focus-visible {
   color: var(--ink);
 }
 
-.dsa-session-body {
-  display: flex;
-  flex-direction: column;
-  padding: 12px 4px 0;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.dsa-session-prompt {
-  max-width: none;
-  width: 100%;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.dsa-session {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  flex: 1;
-  min-height: 0;
-  margin-top: 4px;
-}
-
-.dsa-session-panel {
-  padding: 18px 20px;
-  border-color: color-mix(in srgb, var(--ember) 18%, var(--line));
-}
-
-.dsa-log-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 16px;
-  margin-top: 14px;
-}
-
-.dsa-log-form .field:first-child,
-.dsa-log-form .dsa-log-notes,
-.dsa-log-form .row {
-  grid-column: 1 / -1;
-}
-
-.dsa-add-tracker summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.dsa-add-tracker summary::-webkit-details-marker {
-  display: none;
-}
-
-.dsa-stats-bar {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--ember) 12%, var(--line));
-  box-shadow: none;
-  padding: 2px 0 18px;
-  margin: 0;
-}
-
-.dsa-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px 28px;
-  align-items: start;
-}
-
-.dsa-stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dsa-stat-item .kicker {
-  margin: 0;
-  line-height: 1.2;
-}
-
-.dsa-stat-value {
-  font-family: var(--serif);
-  font-size: 1.65rem;
-  line-height: 1.1;
-  color: var(--gold);
-  font-weight: 560;
-}
-
-.dsa-session-columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
-  gap: 28px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.dsa-session-col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-  overflow: hidden;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  border: 0;
-}
-
-.dsa-col-head {
+.panel-col-head {
   flex-shrink: 0;
 }
 
-.dsa-col-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.dsa-col-heading {
+.panel-col-heading {
   font-family: var(--serif);
   font-size: 1.05rem;
   font-weight: 560;
@@ -2555,84 +2358,9 @@ a.card:focus-visible {
   border-bottom: 1px solid color-mix(in srgb, var(--ember) 12%, var(--line));
 }
 
-.dsa-log-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.dsa-log-hint {
+.panel-log-hint {
   font-size: 0.9rem;
   margin: 8px 0 0;
-}
-
-.dsa-notes-field {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.dsa-session-notes-area {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  resize: none;
-  overflow-y: auto;
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--ember) 16%, var(--line));
-  border-radius: var(--radius-sm);
-  padding: 14px 16px;
-}
-
-.dsa-log-cue {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--ember) 12%, var(--line));
-  box-shadow: none;
-}
-
-.dsa-log-problem {
-  margin-top: 8px;
-  white-space: pre-wrap;
-  font-weight: 500;
-}
-
-.dsa-diff-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--ember) 22%, var(--line));
-  background: var(--ember-dim);
-  color: var(--gold);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.dsa-diff-easy {
-  background: color-mix(in srgb, var(--sage) 14%, var(--bg-2));
-  border-color: color-mix(in srgb, var(--sage) 28%, var(--line));
-  color: color-mix(in srgb, var(--sage) 70%, var(--ink));
-}
-
-.dsa-diff-medium {
-  background: var(--ember-dim);
-  border-color: color-mix(in srgb, var(--ember) 35%, var(--line));
-  color: var(--gold);
-}
-
-.dsa-diff-hard {
-  background: color-mix(in srgb, var(--rose) 10%, var(--bg-2));
-  border-color: color-mix(in srgb, var(--rose) 28%, var(--line));
-  color: color-mix(in srgb, var(--rose) 75%, var(--ink));
-}
-
-.dsa-session-notes-area:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--ember) 45%, var(--line));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ember) 12%, transparent);
 }
 
 .studio-body {
@@ -2641,29 +2369,12 @@ a.card:focus-visible {
   padding: 12px 24px 32px;
 }
 
-/* After `.studio-body` so DSA wins the cascade (flex + full bleed) */
-.dsa-session-frame .studio-body.dsa-session-body {
-  display: flex;
-  flex-direction: column;
-  place-items: stretch;
-  padding: 12px 4px 0;
-  overflow: hidden;
-  min-height: 0;
-  width: 100%;
-}
-
 .prompt {
   max-width: 760px;
   width: 100%;
 }
 
-/* Must beat `.prompt` so DSA fills the main column */
-.dsa-session-frame .prompt.dsa-session-prompt {
-  max-width: none;
-  width: 100%;
-}
-
-/* Applications block — JD + margin comments (reuses DSA full-bleed shell) */
+/* Applications block — JD + margin comments (full-bleed shell) */
 .apps-session-frame {
   grid-template-rows: auto 1fr;
   flex: 1;
@@ -4529,24 +4240,6 @@ a.card:focus-visible {
   color: var(--gold);
 }
 
-.dsa-session-prompt > .timer-hero {
-  margin: 4px auto 10px;
-  max-width: 420px;
-  padding: 0;
-}
-
-/* DSA: timer stays prominent but secondary to the session title */
-.dsa-session-prompt > .timer-hero .timer {
-  font-size: clamp(2.5rem, 7vw, 3.75rem);
-  letter-spacing: 0.03em;
-  line-height: 1;
-  color: var(--gold);
-}
-
-.dsa-session-prompt > .timer-hero .timer.over {
-  color: var(--gold);
-}
-
 .timer.is-paused,
 .timer-hero.is-paused .timer,
 .timer-box.is-paused .timer {
@@ -5206,34 +4899,8 @@ details.fold[open] summary {
     max-width: none;
   }
 
-  .dsa-session-body {
-    padding: 12px 0 0;
-    overflow: hidden;
-  }
-
-  .dsa-stat-grid,
-  .dsa-session-columns,
-  .dsa-log-form,
   .apps-session-columns {
     grid-template-columns: 1fr;
-  }
-
-  .dsa-session-columns {
-    overflow: auto;
-    min-height: 0;
-  }
-
-  .dsa-session-col {
-    max-height: min(48vh, 420px);
-    overflow: hidden;
-  }
-
-  .dsa-session-notes-area {
-    min-height: 180px;
-  }
-
-  .dsa-session-chrome {
-    margin-inline: 0;
   }
 
   .apps-app-meta,

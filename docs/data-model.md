@@ -8,7 +8,7 @@
 - **Application storage only** — persist what the product needs to run (identity + the user’s studio document). Not a warehouse: no server-side analytics, reporting SQL, or cross-user queries as a design goal.
 - **One document in the UI** — the SPA’s `AppState` remains the working model; cloud sync mirrors that document.
 - **$0 budget** — stay inside Cloudflare free allowances; avoid storage products that introduce a path to billed usage for solo hobby traffic.
-- **Don’t put rebuildable or bulky device media in D1** — sheet CSV cache and audio bytes stay out of the synced document.
+- **Don’t put rebuildable or bulky device media in D1** — audio bytes stay out of the synced document.
 
 Canonical `AppState` fields live in code (`[src/lib/types.ts](../src/lib/types.ts)`); load/migrate in `[src/lib/storage.ts](../src/lib/storage.ts)`. This doc does **not** snapshot the JSON shape (it churns with the app).
 
@@ -19,8 +19,7 @@ Browser
 ├── localStorage  studio:v1              → AppState document (always)
 ├── localStorage  studio:sync-updated-at → sync clock
 ├── sessionStorage studio:google-id-token → app auth (not synced)
-├── IndexedDB     studio-audio           → recording bytes
-└── IndexedDB     studio-sheet-csv       → sheet CSV cache
+└── IndexedDB     studio-audio           → recording bytes
 
 Cloudflare D1 (one shared DB)
 ├── users       → account / identity row (who signed in)
@@ -30,12 +29,11 @@ Cloudflare D1 (one shared DB)
 
 | Data                                                                  | Store                          | In D1 sync?                         |
 | --------------------------------------------------------------------- | ------------------------------ | ----------------------------------- |
-| Studio document (`AppState`: stories, sessions, goals, sheet URLs, …) | localStorage + D1 document row | Yes                                 |
+| Studio document (`AppState`: stories, sessions, goals, applications, …) | localStorage + D1 document row | Yes                                 |
 | Sign-in identity (Google `sub`, email, …)                             | D1 identity row                | Written by Worker on auth           |
 | Interview audio bytes                                                 | IndexedDB                      | No                                  |
 | `audioId` on a session answer                                         | Inside `AppState` document     | Yes (string only — see Audio below) |
-| Sheet CSV cache                                                       | IndexedDB                      | No (URLs sync; CSV is rebuildable)  |
-| Sheets access token / app ID token                                    | Memory / sessionStorage        | No                                  |
+| App ID token                                                          | Memory / sessionStorage        | No                                  |
 
 
 ## D1: identity row vs studio document
@@ -187,7 +185,7 @@ Users expect the app to **stop showing their data** after sign-out (shared devic
 1. Cancel pending cloud pushes — **do not** `PUT` an empty document (that would wipe D1).  
 2. Clear local sync clock (`studio:sync-updated-at`).  
 3. Replace in-memory + localStorage `AppState` with a fresh empty document (defaults only).  
-4. Best-effort clear IndexedDB audio + sheet CSV caches.  
+4. Best-effort clear IndexedDB audio cache.  
 5. Clear `studio:welcome-done` and send the user to **`/login`**.  
 6. **Cloud studio document on D1 is kept** so the next Google sign-in can restore via **B1** (no local sync clock → treat cloud as newer).
 
@@ -211,10 +209,6 @@ The product already is one document in the browser; cloud storage mirrors that f
 **Write amplification:** changing one goal re-serializes and replaces the **entire** document in D1. Acceptable for solo use with debounce and modest document size; revisit if history grows huge or conflicts hurt.
 
 Schema evolution stays in client `normalizeState` (applied to both local and remote JSON).
-
-## Sheet CSV cache
-
-Fetched CSV for trackers lives in IndexedDB because it is **derived** from sheet URLs + Sheets auth, can go stale, and isn’t needed as source of truth. Synced document keeps **URLs** (and light metadata) only.
 
 ## Audio and R2 (deferred)
 
@@ -240,7 +234,7 @@ So we **do not** use R2 unless a later decision accepts that risk and proves usa
 
 - Building a warehouse or analytics product on D1  
 - Per-field multi-device merge / CRDTs  
-- Syncing audio bytes or sheet CSV  
+- Syncing audio bytes  
 - Per-user databases or Workers
 
 ## When to change this design

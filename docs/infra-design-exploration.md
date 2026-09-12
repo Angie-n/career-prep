@@ -42,7 +42,6 @@ GitHub (main) → Actions + Wrangler → Cloudflare Worker
 ```
 
 - **Auth:** Google Identity Services **ID token** (JWT). Worker verifies `aud` + signature (or tokeninfo); upsert `users` by `sub`.
-- **Sheets (existing):** separate GIS **access-token** flow for spreadsheet readonly — not the app user identity.
 - **Secrets in CI:** repository secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; deploy only on `push` to `main`. Prefer scoped Account API token (Workers Scripts Edit, Account Settings Read, D1 Edit). Do **not** use Client IP allowlists for GitHub-hosted runners (IPs rotate). OIDC for Wrangler is not available yet.
 
 ## Alternatives considered (brief)
@@ -60,7 +59,6 @@ GitHub (main) → Actions + Wrangler → Cloudflare Worker
 |------|--------|
 | Sessions, stories, goals, prefs | D1, `user_id` = Google `sub` |
 | Interview audio blobs | Stay IndexedDB (or R2 later); avoid D1 |
-| Sheet URLs / CSV cache | Prefer D1 for URLs; CSV cache can stay client |
 
 ## Cutover checklist (ops)
 

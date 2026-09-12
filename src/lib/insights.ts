@@ -216,33 +216,6 @@ export function improvingNote(state: AppState): string {
   return `You have been showing up. The thin spot is ${CATEGORY_LABEL[weak]}.`
 }
 
-/** Normalize sheet Date cells to YYYY-MM-DD (local). */
-export function sheetDateKey(value: string): string | null {
-  const v = value.trim()
-  if (!v) return null
-  const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`
-  const t = Date.parse(v)
-  if (Number.isNaN(t)) return null
-  return todayKey(new Date(t))
-}
-
-export function countSheetRowsOnDay(
-  rows: { Date?: string; date?: string }[],
-  day: string,
-): number {
-  let n = 0
-  for (const row of rows) {
-    const key = sheetDateKey(row.Date ?? row.date ?? '')
-    if (key === day) n += 1
-  }
-  return n
-}
-
-export function countSheetRows(rows: unknown[]): number {
-  return rows.length
-}
-
 function isPromptAnswered(a: SessionAnswer): boolean {
   return Boolean(a.draftNotes.trim() || a.transcript.trim() || a.audioId)
 }
@@ -270,36 +243,6 @@ export function promptsAnsweredAllTime(state: AppState): number {
   for (const s of state.sessions) {
     if (!COMM_KINDS.includes(s.kind)) continue
     n += s.answers.filter(isPromptAnswered).length
-  }
-  return n
-}
-
-/**
- * DSA problems attributed to the day from tracker rows pulled into sessions
- * that touch the day (same sense as the in-session solved count).
- */
-export function dsaProblemsSolvedOn(state: AppState, day = todayKey()): number {
-  let n = 0
-  for (const s of state.sessions) {
-    if (s.kind !== 'dsa-block') continue
-    if (!sessionTouchesDay(s, day)) continue
-    n += s.dsaRetrieved?.length ?? 0
-  }
-  return n
-}
-
-/** All-time DSA problems from tracker rows pulled into sessions. */
-export function dsaProblemsSolvedAllTime(state: AppState): number {
-  let n = 0
-  const seen = new Set<string>()
-  for (const s of state.sessions) {
-    if (s.kind !== 'dsa-block') continue
-    for (const item of s.dsaRetrieved ?? []) {
-      const key = item.problem.trim().toLowerCase()
-      if (!key || seen.has(key)) continue
-      seen.add(key)
-      n += 1
-    }
   }
   return n
 }

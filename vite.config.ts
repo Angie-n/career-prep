@@ -19,15 +19,6 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:8787',
           changeOrigin: true,
         },
-        '/sheet-csv': {
-          target: 'https://docs.google.com',
-          changeOrigin: true,
-          rewrite: (path) => {
-            const m = path.match(/^\/sheet-csv\/([^/]+)\/([^/?]+)/)
-            if (!m?.[1] || !m[2]) return path
-            return `/spreadsheets/d/${m[1]}/export?format=csv&gid=${m[2]}`
-          },
-        },
       },
     },
   }
